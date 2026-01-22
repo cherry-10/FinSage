@@ -23,58 +23,58 @@ api.interceptors.request.use(
 );
 
 export const authAPI = {
-  register: (data) => api.post('/auth/register', data),
+  register: (data) => api.post('/api/auth/register', data),
   login: (email, password) => {
     const formData = new FormData();
     formData.append('username', email);
     formData.append('password', password);
-    return api.post('/auth/login', formData, {
+    return api.post('/api/auth/login', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  getCurrentUser: () => api.get('/auth/me'),
-  updateUser: (data) => api.put('/auth/me', data),
-  changePassword: (data) => api.post('/auth/change-password', data),
+  getCurrentUser: () => api.get('/api/auth/me'),
+  updateUser: (data) => api.put('/api/auth/me', data),
+  changePassword: (data) => api.post('/api/auth/change-password', data),
 };
 
 export const incomeAPI = {
-  create: (data) => api.post('/income', data),
-  getLatest: () => api.get('/income/latest'),
+  create: (data) => api.post('/api/income', data),
+  getLatest: () => api.get('/api/income/latest'),
 };
 
 export const expenseLimitAPI = {
-  create: (data) => api.post('/expense-limits', data),
-  getLatest: () => api.get('/expense-limits/latest'),
+  create: (data) => api.post('/api/expense-limits', data),
+  getLatest: () => api.get('/api/expense-limits/latest'),
 };
 
 export const transactionAPI = {
-  create: (data) => api.post('/transactions', data),
-  getAll: () => api.get('/transactions'),
-  delete: (id) => api.delete(`/transactions/${id}`),
+  create: (data) => api.post('/api/transactions', data),
+  getAll: () => api.get('/api/transactions'),
+  delete: (id) => api.delete(`/api/transactions/${id}`),
 };
 
 export const budgetAPI = {
-  generate: () => api.post('/budget/generate'),
-  getAll: () => api.get('/budget'),
+  generate: () => api.post('/api/budget/generate'),
+  getAll: () => api.get('/api/budget'),
 };
 
 export const anomalyAPI = {
-  detect: () => api.post('/anomalies/detect'),
-  getAll: () => api.get('/anomalies'),
+  detect: () => api.post('/api/anomalies/detect'),
+  getAll: () => api.get('/api/anomalies'),
 };
 
 export const dashboardAPI = {
-  getStats: (period = 'current_month') => api.get('/dashboard', { params: { period } }),
-  getTrends: (period = 'current_month') => api.get('/dashboard/trends', { params: { period } }),
+  getStats: (period = 'current_month') => api.get('/api/dashboard', { params: { period } }),
+  getTrends: (period = 'current_month') => api.get('/api/dashboard/trends', { params: { period } }),
 };
 
 export const settingsAPI = {
-  get: () => api.get('/settings'),
-  update: (data) => api.put('/settings', data),
+  get: () => api.get('/api/settings'),
+  update: (data) => api.put('/api/settings', data),
 };
 
 export const insightsAPI = {
-  get: () => api.get('/insights'),
+  get: () => api.get('/api/insights'),
 };
 
 export default api;
