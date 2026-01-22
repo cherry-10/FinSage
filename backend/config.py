@@ -1,3 +1,7 @@
+from pydantic_settings import BaseSettings
+from pydantic import field_validator
+from functools import lru_cache
+
 class Settings(BaseSettings):
     SUPABASE_URL: str = "https://cgejzlbedvvdlusvrged.supabase.co"
     SUPABASE_ANON_KEY: str
@@ -20,3 +24,11 @@ class Settings(BaseSettings):
         if len(v) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters")
         return v
+
+    class Config:
+        env_file = ".env"
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()
