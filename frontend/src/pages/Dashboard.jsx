@@ -372,7 +372,7 @@ const Dashboard = () => {
             <h2 className={`text-2xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Add Monthly Income
             </h2>
-            <form onSubmit={handleIncomeSubmit} className="space-y-4">
+            <form onSubmit={handleAddIncome} className="space-y-4">
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   Monthly Income (₹)
