@@ -411,6 +411,73 @@ const Budget = () => {
           )}
         </div>
       </div>
+
+      {/* Set/Update Limits Modal */}
+      {showLimitModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full shadow-2xl`}>
+            <h2 className={`text-2xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {expenseLimit ? 'Update' : 'Set'} Expense Limits
+            </h2>
+            <form onSubmit={handleLimitSubmit} className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Monthly Spending Limit (₹)
+                </label>
+                <input
+                  type="number"
+                  value={limitData.monthly_limit}
+                  onChange={(e) => setLimitData({ ...limitData, monthly_limit: e.target.value })}
+                  className={`w-full px-4 py-2 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                  placeholder="Enter monthly limit"
+                  required
+                  min="0"
+                  step="0.01"
+                />
+                <p className={`text-xs mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Maximum amount you want to spend per month
+                </p>
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Target Savings (₹)
+                </label>
+                <input
+                  type="number"
+                  value={limitData.target_savings}
+                  onChange={(e) => setLimitData({ ...limitData, target_savings: e.target.value })}
+                  className={`w-full px-4 py-2 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                  placeholder="Enter savings target"
+                  required
+                  min="0"
+                  step="0.01"
+                />
+                <p className={`text-xs mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Amount you want to save each month
+                </p>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowLimitModal(false)}
+                  className="flex-1 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 btn-primary"
+                >
+                  {expenseLimit ? 'Update' : 'Set'} Limits
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );
