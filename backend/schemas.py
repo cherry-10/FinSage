@@ -126,7 +126,7 @@ class UserSettingsResponse(BaseModel):
 
 
 # ============================================
-# DASHBOARD
+# DASHBOARD SCHEMAS
 # ============================================
 class DashboardStats(BaseModel):
     total_income: float
