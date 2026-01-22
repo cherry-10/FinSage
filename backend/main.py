@@ -36,6 +36,26 @@ app.add_middleware(
 def health():
     return {"status": "healthy", "service": "FinSage API"}
 
+@app.get("/api/health")
+def detailed_health():
+    try:
+        db = get_db()
+        # Test if users table exists
+        result = db.table("users").select("id").limit(1).execute()
+        return {
+            "status": "healthy",
+            "service": "FinSage API",
+            "database": "connected",
+            "users_table": "exists" if result.data else "empty"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "FinSage API",
+            "database": "error",
+            "error": str(e)
+        }
+
 # ============================================
 # AUTH: REGISTER
 # ============================================
