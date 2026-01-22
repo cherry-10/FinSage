@@ -3,7 +3,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # Supabase Configuration
-    SUPABASE_URL: str = "https://xpfugtjuoprcavcnurqh.supabase.co"
+    SUPABASE_URL: str = "https://cgejzlbedvvdlusvrged.supabase.co"
     SUPABASE_ANON_KEY: str
     SUPABASE_SERVICE_KEY: str
     DATABASE_URL: str
