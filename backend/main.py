@@ -64,39 +64,48 @@ def register(
     user_data: schemas.UserCreate,
     db=Depends(get_db),
 ):
-    # Check if user already exists
-    existing_user = (
-        db.table("users")
-        .select("*")
-        .eq("email", user_data.email)
-        .execute()
-    )
-    
-    if existing_user.data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+    try:
+        # Check if user already exists
+        existing_user = (
+            db.table("users")
+            .select("*")
+            .eq("email", user_data.email)
+            .execute()
         )
+        
+        if existing_user.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            )
+        
+        # Create new user
+        password_hash = auth.hash_password(user_data.password)
+        payload = {
+            "name": user_data.name,
+            "email": user_data.email,
+            "phone": user_data.phone,
+            "password_hash": password_hash,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+        
+        result = db.table("users").insert(payload).execute()
+        user = result.data[0]
+        
+        # Create access token
+        access_token = auth.create_access_token(
+            data={"sub": user["email"], "id": user["id"]}
+        )
+        
+        return {"access_token": access_token, "token_type": "bearer"}
     
-    # Create new user
-    password_hash = auth.hash_password(user_data.password)
-    payload = {
-        "name": user_data.name,
-        "email": user_data.email,
-        "phone": user_data.phone,
-        "password_hash": password_hash,
-        "created_at": datetime.utcnow().isoformat(),
-    }
-    
-    result = db.table("users").insert(payload).execute()
-    user = result.data[0]
-    
-    # Create access token
-    access_token = auth.create_access_token(
-        data={"sub": user["email"], "id": user["id"]}
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
+        )
 
 # ============================================
 # AUTH: LOGIN
@@ -106,32 +115,41 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db=Depends(get_db),
 ):
-    result = (
-        db.table("users")
-        .select("*")
-        .eq("email", form_data.username)
-        .execute()
-    )
-
-    if not result.data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+    try:
+        result = (
+            db.table("users")
+            .select("*")
+            .eq("email", form_data.username)
+            .execute()
         )
 
-    user = result.data[0]
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
 
-    if not auth.verify_password(form_data.password, user["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+        user = result.data[0]
+
+        if not auth.verify_password(form_data.password, user["password_hash"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
+
+        access_token = auth.create_access_token(
+            data={"sub": user["email"], "id": user["id"]}
         )
 
-    access_token = auth.create_access_token(
-        data={"sub": user["email"], "id": user["id"]}
-    )
-
-    return {"access_token": access_token, "token_type": "bearer"}
+        return {"access_token": access_token, "token_type": "bearer"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login failed: {str(e)}"
+        )
 
 # ============================================
 # TRANSACTIONS: CREATE
