@@ -1,16 +1,22 @@
 from pydantic import BaseModel, EmailStr
+from pydantic import ConfigDict
 from datetime import datetime
 from typing import Optional, List
 
+# ============================================
+# USERS
+# ============================================
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
     phone: str
     password: str
 
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
 
 class UserResponse(BaseModel):
     id: int
@@ -21,8 +27,8 @@ class UserResponse(BaseModel):
     annual_salary: Optional[float] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
@@ -30,16 +36,23 @@ class UserUpdate(BaseModel):
     annual_salary: Optional[float] = None
     profile_photo: Optional[str] = None
 
+
 class PasswordChange(BaseModel):
     old_password: str
     new_password: str
+
 
 class Token(BaseModel):
     access_token: str
     token_type: str
 
+
+# ============================================
+# INCOME
+# ============================================
 class IncomeCreate(BaseModel):
     monthly_income: float
+
 
 class IncomeResponse(BaseModel):
     id: int
@@ -47,12 +60,16 @@ class IncomeResponse(BaseModel):
     monthly_income: float
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
+
+# ============================================
+# EXPENSE LIMITS
+# ============================================
 class ExpenseLimitCreate(BaseModel):
     monthly_limit: float
     target_savings: float
+
 
 class ExpenseLimitResponse(BaseModel):
     id: int
@@ -61,15 +78,19 @@ class ExpenseLimitResponse(BaseModel):
     target_savings: float
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
+
+# ============================================
+# TRANSACTIONS
+# ============================================
 class TransactionCreate(BaseModel):
     amount: float
     category: str
     description: Optional[str] = None
     transaction_type: str = "expense"
     transaction_date: Optional[datetime] = None
+
 
 class TransactionResponse(BaseModel):
     id: int
@@ -80,9 +101,12 @@ class TransactionResponse(BaseModel):
     transaction_type: str
     transaction_date: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
+
+# ============================================
+# BUDGET
+# ============================================
 class BudgetPlanResponse(BaseModel):
     id: int
     user_id: int
@@ -91,9 +115,12 @@ class BudgetPlanResponse(BaseModel):
     allocated_amount: float
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
+
+# ============================================
+# ANOMALIES
+# ============================================
 class AnomalyResponse(BaseModel):
     id: int
     user_id: int
@@ -103,29 +130,21 @@ class AnomalyResponse(BaseModel):
     recommendation: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
+
+# ============================================
+# USER SETTINGS
+# ============================================
 class UserSettingsUpdate(BaseModel):
     notifications_enabled: Optional[int] = None
     dark_mode: Optional[int] = None
     anomaly_alerts: Optional[int] = None
+
 
 class UserSettingsResponse(BaseModel):
     id: int
     user_id: int
     notifications_enabled: int
     dark_mode: int
-    anomaly_alerts: int
-
-    class Config:
-        from_attributes = True
-
-class DashboardStats(BaseModel):
-    total_income: float
-    total_expenses: float
-    savings: float
-    anomaly_count: int
-    last_month_expenses: float
-    this_month_expenses: float
-    recent_transactions: List[TransactionResponse]
+    anom
