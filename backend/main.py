@@ -22,6 +22,7 @@ app.add_middleware(
         "https://*.vercel.app",
         "https://finsage.vercel.app",
         "https://finsage-smart-choice-app.vercel.app",
+        "https://fin-sage-nks6.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
