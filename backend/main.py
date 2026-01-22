@@ -21,6 +21,7 @@ app.add_middleware(
         "http://localhost:3000",
         "https://*.vercel.app",
         "https://finsage.vercel.app",
+        "https://finsage-smart-choice-app.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -33,6 +34,48 @@ app.add_middleware(
 @app.get("/")
 def health():
     return {"status": "healthy", "service": "FinSage API"}
+
+# ============================================
+# AUTH: REGISTER
+# ============================================
+@app.post("/api/auth/register", response_model=schemas.Token)
+def register(
+    user_data: schemas.UserCreate,
+    db=Depends(get_db),
+):
+    # Check if user already exists
+    existing_user = (
+        db.table("users")
+        .select("*")
+        .eq("email", user_data.email)
+        .execute()
+    )
+    
+    if existing_user.data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+    
+    # Create new user
+    password_hash = auth.hash_password(user_data.password)
+    payload = {
+        "name": user_data.name,
+        "email": user_data.email,
+        "phone": user_data.phone,
+        "password_hash": password_hash,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    
+    result = db.table("users").insert(payload).execute()
+    user = result.data[0]
+    
+    # Create access token
+    access_token = auth.create_access_token(
+        data={"sub": user["email"], "id": user["id"]}
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
 
 # ============================================
 # AUTH: LOGIN

@@ -6,10 +6,25 @@ from fastapi.security import OAuth2PasswordBearer
 from supabase import Client as SupabaseClient
 from config import get_settings
 from database import get_supabase_client
+from passlib.context import CryptContext
 
 settings = get_settings()
 
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+
+# ============================================
+# Password Utilities
+# ============================================
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def hash_password(password: str) -> str:
+    """Hash a password"""
+    return pwd_context.hash(password)
 
 # ============================================
 # JWT Utilities
@@ -35,7 +50,7 @@ def create_access_token(
     return encoded_jwt
 
 # ============================================
-# Current User Dependency (Supabase)
+# Current User Dependency (Custom User Table)
 # ============================================
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -55,24 +70,26 @@ async def get_current_user(
         payload = jwt.decode(
             token,
             settings.SUPABASE_JWT_SECRET or settings.SECRET_KEY,
-            algorithms=["HS256"],
-            audience="authenticated"
+            algorithms=["HS256"]
         )
         
-        # Get user ID from token
-        user_id = payload.get("sub")
-        if not user_id:
+        # Get user email from token
+        email = payload.get("sub")
+        user_id = payload.get("id")
+        
+        if not email or not user_id:
             raise credentials_exception
             
-        # Get user from Supabase
-        response = supabase.auth.admin.get_user_by_id(user_id)
-        if not response.user:
+        # Get user from our custom users table
+        result = supabase.table("users").select("*").eq("id", user_id).eq("email", email).execute()
+        
+        if not result.data:
             raise credentials_exception
             
+        user = result.data[0]
         return {
-            "id": response.user.id,
-            "email": response.user.email,
-            "user_metadata": response.user.user_metadata or {}
+            "id": user["id"],
+            "email": user["email"],
         }
         
     except JWTError:
