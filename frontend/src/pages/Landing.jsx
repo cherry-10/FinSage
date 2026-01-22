@@ -153,7 +153,7 @@ const Landing = () => {
             <span className="text-lg sm:text-xl font-bold">FinSage</span>
           </div>
           <p className="text-sm sm:text-base text-gray-400">
-            © 2024 FinSage. Smart budgets. Smarter savings.
+            © FinSage. Smart budgets. Smarter savings.
           </p>
         </div>
       </footer>
