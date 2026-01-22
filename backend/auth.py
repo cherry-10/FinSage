@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from supabase import Client as SupabaseClient
 from config import get_settings
-from database import get_supabase
+from database import get_supabase_client
 
 settings = get_settings()
 
@@ -39,7 +39,7 @@ def create_access_token(
 # ============================================
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    supabase: SupabaseClient = Depends(get_supabase)
+    supabase: SupabaseClient = Depends(get_supabase_client)
 ) -> dict:
     """
     Get the current authenticated user from the JWT token
