@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from functools import lru_cache
+from typing import Optional
 
 class Settings(BaseSettings):
     SUPABASE_URL: str = "https://cgejzlbedvvdlusvrged.supabase.co"
@@ -8,7 +9,7 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str
 
     SECRET_KEY: str
-    SUPABASE_JWT_SECRET: str = None  # Optional, defaults to SECRET_KEY if not set
+    SUPABASE_JWT_SECRET: Optional[str] = None  # Optional, defaults to SECRET_KEY if not set
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
