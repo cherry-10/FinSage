@@ -174,13 +174,7 @@ async def get_current_user_info(
                 detail="User not found"
             )
         
-        user_data = result.data[0]
-        
-        # Ensure annual_income exists, default to None if not present
-        if "annual_income" not in user_data:
-            user_data["annual_income"] = None
-        
-        return user_data
+        return result.data[0]
     
     except HTTPException:
         raise
@@ -617,6 +611,19 @@ def get_dashboard_stats(
     db=Depends(get_db),
 ):
     try:
+        # Get user's annual salary for monthly income calculation
+        user_result = (
+            db.table("users")
+            .select("annual_salary")
+            .eq("id", current_user["id"])
+            .execute()
+        )
+        
+        monthly_income = 0
+        if user_result.data and user_result.data[0].get("annual_salary"):
+            annual_salary = float(user_result.data[0]["annual_salary"])
+            monthly_income = annual_salary / 12
+        
         # Get all transactions
         transactions_result = (
             db.table("transactions")
@@ -631,7 +638,8 @@ def get_dashboard_stats(
         current_month = datetime.utcnow().month
         current_year = datetime.utcnow().year
         
-        total_income = sum(t["amount"] for t in transactions if t["transaction_type"] == "income")
+        # Use monthly income from annual_salary, not from transactions
+        total_income = monthly_income
         total_expenses = sum(t["amount"] for t in transactions if t["transaction_type"] == "expense")
         
         this_month_expenses = sum(
@@ -668,7 +676,7 @@ def get_dashboard_stats(
             reverse=True
         )[:5]
         
-        # Calculate category breakdown
+        # Calculate category breakdown for graphs
         category_totals = {}
         for t in transactions:
             if t["transaction_type"] == "expense":
@@ -837,8 +845,8 @@ def update_profile(
             update_data["phone"] = user_data["phone"]
         if "profile_photo" in user_data:
             update_data["profile_photo"] = user_data["profile_photo"]
-        if "annual_income" in user_data:
-            update_data["annual_income"] = user_data["annual_income"]
+        if "annual_salary" in user_data:
+            update_data["annual_salary"] = user_data["annual_salary"]
         
         if not update_data:
             raise HTTPException(
