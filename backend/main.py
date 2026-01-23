@@ -163,7 +163,7 @@ async def get_current_user_info(
     try:
         result = (
             db.table("users")
-            .select("id, name, email, phone, profile_photo, annual_income, created_at")
+            .select("*")
             .eq("id", current_user["id"])
             .execute()
         )
@@ -174,7 +174,13 @@ async def get_current_user_info(
                 detail="User not found"
             )
         
-        return result.data[0]
+        user_data = result.data[0]
+        
+        # Ensure annual_income exists, default to None if not present
+        if "annual_income" not in user_data:
+            user_data["annual_income"] = None
+        
+        return user_data
     
     except HTTPException:
         raise
