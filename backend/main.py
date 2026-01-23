@@ -604,7 +604,7 @@ def get_anomalies(
 # ============================================
 # DASHBOARD: GET STATS
 # ============================================
-@app.get("/api/dashboard", response_model=schemas.DashboardStats)
+@app.get("/api/dashboard")
 def get_dashboard_stats(
     period: str = "current_month",
     current_user=Depends(auth.get_current_user),
@@ -662,6 +662,18 @@ def get_dashboard_stats(
             reverse=True
         )[:5]
         
+        # Calculate category breakdown
+        category_totals = {}
+        for t in transactions:
+            if t["transaction_type"] == "expense":
+                category = t["category"]
+                category_totals[category] = category_totals.get(category, 0) + t["amount"]
+        
+        category_breakdown = [
+            {"category": cat, "total": total}
+            for cat, total in category_totals.items()
+        ]
+        
         return {
             "total_income": total_income,
             "total_expenses": total_expenses,
@@ -669,7 +681,8 @@ def get_dashboard_stats(
             "anomaly_count": anomaly_count,
             "last_month_expenses": last_month_expenses,
             "this_month_expenses": this_month_expenses,
-            "recent_transactions": recent_transactions
+            "recent_transactions": recent_transactions,
+            "category_breakdown": category_breakdown
         }
     
     except Exception as e:
@@ -818,6 +831,8 @@ def update_profile(
             update_data["phone"] = user_data["phone"]
         if "profile_photo" in user_data:
             update_data["profile_photo"] = user_data["profile_photo"]
+        if "annual_income" in user_data:
+            update_data["annual_income"] = user_data["annual_income"]
         
         if not update_data:
             raise HTTPException(
@@ -867,25 +882,135 @@ def get_insights(
         
         transactions = transactions_result.data if transactions_result.data else []
         
-        # Calculate insights
+        # Calculate current month and last month totals
+        current_month = datetime.utcnow().month
+        current_year = datetime.utcnow().year
+        
+        current_month_total = sum(
+            t["amount"] for t in transactions 
+            if t["transaction_type"] == "expense" and 
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == current_month and
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == current_year
+        )
+        
+        last_month = current_month - 1 if current_month > 1 else 12
+        last_month_year = current_year if current_month > 1 else current_year - 1
+        
+        last_month_total = sum(
+            t["amount"] for t in transactions 
+            if t["transaction_type"] == "expense" and 
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == last_month and
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == last_month_year
+        )
+        
+        difference = current_month_total - last_month_total
+        percent_change = ((difference / last_month_total) * 100) if last_month_total > 0 else 0
+        
+        # Calculate total expenses and category breakdown
         total_expenses = sum(t["amount"] for t in transactions if t["transaction_type"] == "expense")
         
-        # Category breakdown
         category_breakdown = {}
         for t in transactions:
             if t["transaction_type"] == "expense":
                 category = t["category"]
                 category_breakdown[category] = category_breakdown.get(category, 0) + t["amount"]
         
-        # Top spending category
+        # Find top spending category
         top_category = max(category_breakdown.items(), key=lambda x: x[1]) if category_breakdown else ("None", 0)
         
+        # Generate AI-powered recommendations
+        recommendations = []
+        
+        # Recommendation 1: Spending trend
+        if difference > 0:
+            recommendations.append({
+                "category": "Spending Alert",
+                "message": f"Your spending increased by ₹{abs(difference):.2f} ({abs(percent_change):.1f}%) compared to last month. Consider reviewing your expenses.",
+                "type": "warning"
+            })
+        elif difference < 0:
+            recommendations.append({
+                "category": "Great Progress",
+                "message": f"Excellent! You reduced spending by ₹{abs(difference):.2f} ({abs(percent_change):.1f}%) compared to last month.",
+                "type": "success"
+            })
+        else:
+            recommendations.append({
+                "category": "Stable Spending",
+                "message": "Your spending is consistent with last month. Keep maintaining this pattern.",
+                "type": "info"
+            })
+        
+        # Recommendation 2: Top spending category
+        if top_category[1] > 0:
+            category_percentage = (top_category[1] / total_expenses * 100) if total_expenses > 0 else 0
+            if category_percentage > 40:
+                recommendations.append({
+                    "category": "Category Alert",
+                    "message": f"{top_category[0]} accounts for {category_percentage:.1f}% of your expenses (₹{top_category[1]:.2f}). Consider setting a budget for this category.",
+                    "type": "warning"
+                })
+            else:
+                recommendations.append({
+                    "category": "Top Spending",
+                    "message": f"Your highest spending is in {top_category[0]} (₹{top_category[1]:.2f}). This is {category_percentage:.1f}% of total expenses.",
+                    "type": "info"
+                })
+        
+        # Recommendation 3: Savings opportunity
+        if total_expenses > 0:
+            potential_savings = total_expenses * 0.1  # Suggest 10% reduction
+            recommendations.append({
+                "category": "Savings Opportunity",
+                "message": f"By reducing expenses by just 10%, you could save ₹{potential_savings:.2f} per month, which is ₹{potential_savings * 12:.2f} annually!",
+                "type": "success"
+            })
+        
+        # Recommendation 4: Transaction frequency
+        transaction_count = len([t for t in transactions if t["transaction_type"] == "expense"])
+        if transaction_count > 50:
+            recommendations.append({
+                "category": "Transaction Pattern",
+                "message": f"You have {transaction_count} expense transactions. Consider consolidating purchases to reduce impulse spending.",
+                "type": "info"
+            })
+        
+        # Generate summary
+        if total_expenses == 0:
+            summary = "Start tracking your expenses to get personalized insights and recommendations. Add your first transaction to begin your financial journey!"
+        else:
+            summary = f"Based on your spending patterns, you've spent ₹{total_expenses:.2f} across {len(category_breakdown)} categories. "
+            if difference > 0:
+                summary += f"Your spending increased by {abs(percent_change):.1f}% this month. "
+            elif difference < 0:
+                summary += f"Great job! You reduced spending by {abs(percent_change):.1f}% this month. "
+            summary += f"Focus on optimizing your {top_category[0]} expenses for maximum savings impact."
+        
+        # Get anomalies
+        anomalies_result = (
+            db.table("anomalies")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .order("created_at", desc=True)
+            .limit(5)
+            .execute()
+        )
+        
+        anomalies = anomalies_result.data if anomalies_result.data else []
+        
         insights = {
+            "summary": summary,
+            "recommendations": recommendations,
+            "anomalies": anomalies,
+            "current_month_total": current_month_total,
+            "last_month_total": last_month_total,
+            "difference": difference,
+            "percent_change": percent_change,
             "total_expenses": total_expenses,
             "category_breakdown": category_breakdown,
             "top_spending_category": top_category[0],
             "top_spending_amount": top_category[1],
-            "transaction_count": len(transactions)
+            "transaction_count": transaction_count
         }
         
         return insights

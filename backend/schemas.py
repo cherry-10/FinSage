@@ -28,6 +28,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     phone: str
     profile_photo: Optional[str] = None
+    annual_income: Optional[float] = None
     created_at: Optional[str] = None
 
 
