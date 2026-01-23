@@ -634,23 +634,41 @@ def get_dashboard_stats(
         
         transactions = transactions_result.data if transactions_result.data else []
         
-        # Calculate stats
+        # Calculate stats based on period filter
         current_month = datetime.utcnow().month
         current_year = datetime.utcnow().year
         
-        # Use monthly income from annual_salary, not from transactions
-        total_income = monthly_income
-        total_expenses = sum(t["amount"] for t in transactions if t["transaction_type"] == "expense")
+        last_month = current_month - 1 if current_month > 1 else 12
+        last_month_year = current_year if current_month > 1 else current_year - 1
         
+        # Determine which month to show based on period parameter
+        if period == "last_month":
+            selected_month = last_month
+            selected_year = last_month_year
+        else:  # current_month or default
+            selected_month = current_month
+            selected_year = current_year
+        
+        # Filter transactions for the selected month only
+        selected_month_transactions = [
+            t for t in transactions
+            if datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == selected_month and
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == selected_year
+        ]
+        
+        # Calculate expenses for SELECTED month only (not all time)
+        total_expenses = sum(
+            t["amount"] for t in selected_month_transactions 
+            if t["transaction_type"] == "expense"
+        )
+        
+        # Calculate this month and last month for comparison
         this_month_expenses = sum(
             t["amount"] for t in transactions 
             if t["transaction_type"] == "expense" and 
             datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == current_month and
             datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == current_year
         )
-        
-        last_month = current_month - 1 if current_month > 1 else 12
-        last_month_year = current_year if current_month > 1 else current_year - 1
         
         last_month_expenses = sum(
             t["amount"] for t in transactions 
@@ -669,16 +687,16 @@ def get_dashboard_stats(
         
         anomaly_count = len(anomalies_result.data) if anomalies_result.data else 0
         
-        # Get recent transactions
+        # Get recent transactions for selected month
         recent_transactions = sorted(
-            transactions,
+            selected_month_transactions,
             key=lambda x: x["transaction_date"],
             reverse=True
         )[:5]
         
-        # Calculate category breakdown for graphs
+        # Calculate category breakdown for selected month only
         category_totals = {}
-        for t in transactions:
+        for t in selected_month_transactions:
             if t["transaction_type"] == "expense":
                 category = t["category"]
                 category_totals[category] = category_totals.get(category, 0) + t["amount"]
@@ -689,9 +707,9 @@ def get_dashboard_stats(
         ]
         
         return {
-            "total_income": total_income,
+            "total_income": monthly_income,
             "total_expenses": total_expenses,
-            "savings": total_income - total_expenses,
+            "savings": monthly_income - total_expenses,
             "anomaly_count": anomaly_count,
             "last_month_expenses": last_month_expenses,
             "this_month_expenses": this_month_expenses,
