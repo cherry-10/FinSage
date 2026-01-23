@@ -226,3 +226,672 @@ def get_transactions(
     )
 
     return result.data
+
+# ============================================
+# TRANSACTIONS: DELETE
+# ============================================
+@app.delete("/api/transactions/{transaction_id}")
+def delete_transaction(
+    transaction_id: int,
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        # Verify transaction belongs to user
+        result = (
+            db.table("transactions")
+            .select("*")
+            .eq("id", transaction_id)
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Transaction not found"
+            )
+        
+        # Delete transaction
+        db.table("transactions").delete().eq("id", transaction_id).execute()
+        
+        return {"message": "Transaction deleted successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete transaction: {str(e)}"
+        )
+
+# ============================================
+# INCOME: CREATE
+# ============================================
+@app.post("/api/income", response_model=schemas.IncomeResponse)
+def create_income(
+    income_data: schemas.IncomeCreate,
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        payload = {
+            "user_id": current_user["id"],
+            "monthly_income": income_data.monthly_income,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        
+        result = db.table("income").insert(payload).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create income record"
+            )
+        
+        return result.data[0]
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create income: {str(e)}"
+        )
+
+# ============================================
+# INCOME: GET LATEST
+# ============================================
+@app.get("/api/income/latest", response_model=schemas.IncomeResponse)
+def get_latest_income(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        result = (
+            db.table("income")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No income record found"
+            )
+        
+        return result.data[0]
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch income: {str(e)}"
+        )
+
+# ============================================
+# EXPENSE LIMITS: CREATE
+# ============================================
+@app.post("/api/expense-limits", response_model=schemas.ExpenseLimitResponse)
+def create_expense_limit(
+    limit_data: schemas.ExpenseLimitCreate,
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        payload = {
+            "user_id": current_user["id"],
+            "monthly_limit": limit_data.monthly_limit,
+            "target_savings": limit_data.target_savings,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        
+        result = db.table("expense_limits").insert(payload).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create expense limit"
+            )
+        
+        return result.data[0]
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create expense limit: {str(e)}"
+        )
+
+# ============================================
+# EXPENSE LIMITS: GET LATEST
+# ============================================
+@app.get("/api/expense-limits/latest", response_model=schemas.ExpenseLimitResponse)
+def get_latest_expense_limit(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        result = (
+            db.table("expense_limits")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No expense limit found"
+            )
+        
+        return result.data[0]
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch expense limit: {str(e)}"
+        )
+
+# ============================================
+# BUDGET: GENERATE
+# ============================================
+@app.post("/api/budget/generate")
+def generate_budget(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        # Get latest income
+        income_result = (
+            db.table("income")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        
+        # Get latest expense limit
+        limit_result = (
+            db.table("expense_limits")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        
+        if not income_result.data or not limit_result.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please set your income and expense limits first"
+            )
+        
+        income = income_result.data[0]["monthly_income"]
+        expense_limit = limit_result.data[0]["monthly_limit"]
+        
+        # Get user transactions for AI analysis
+        transactions_result = (
+            db.table("transactions")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .limit(50)
+            .execute()
+        )
+        
+        # Generate budget using AI
+        budget_plan = generate_budget_plan(
+            income=income,
+            expense_limit=expense_limit,
+            transactions=transactions_result.data
+        )
+        
+        # Store budget plan
+        current_month = datetime.utcnow().strftime("%Y-%m")
+        
+        # Delete existing budget for current month
+        db.table("budget_plans").delete().eq("user_id", current_user["id"]).eq("month", current_month).execute()
+        
+        # Insert new budget plans
+        budget_records = []
+        for category, amount in budget_plan.items():
+            payload = {
+                "user_id": current_user["id"],
+                "month": current_month,
+                "category": category,
+                "allocated_amount": amount,
+                "created_at": datetime.utcnow().isoformat()
+            }
+            budget_records.append(payload)
+        
+        if budget_records:
+            db.table("budget_plans").insert(budget_records).execute()
+        
+        return {"message": "Budget generated successfully", "budget": budget_plan}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate budget: {str(e)}"
+        )
+
+# ============================================
+# BUDGET: GET ALL
+# ============================================
+@app.get("/api/budget", response_model=List[schemas.BudgetPlanResponse])
+def get_budget(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        current_month = datetime.utcnow().strftime("%Y-%m")
+        
+        result = (
+            db.table("budget_plans")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .eq("month", current_month)
+            .execute()
+        )
+        
+        return result.data if result.data else []
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch budget: {str(e)}"
+        )
+
+# ============================================
+# ANOMALIES: DETECT
+# ============================================
+@app.post("/api/anomalies/detect")
+def detect_anomalies_endpoint(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        # Get user transactions
+        transactions_result = (
+            db.table("transactions")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+        
+        # Get expense limit
+        limit_result = (
+            db.table("expense_limits")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        
+        expense_limit = limit_result.data[0]["monthly_limit"] if limit_result.data else None
+        
+        # Detect anomalies using AI
+        anomalies = detect_anomalies(
+            transactions=transactions_result.data,
+            expense_limit=expense_limit
+        )
+        
+        # Delete old anomalies
+        db.table("anomalies").delete().eq("user_id", current_user["id"]).execute()
+        
+        # Store new anomalies
+        if anomalies:
+            anomaly_records = []
+            for anomaly in anomalies:
+                payload = {
+                    "user_id": current_user["id"],
+                    "category": anomaly.get("category", "General"),
+                    "issue": anomaly.get("issue", ""),
+                    "impact_amount": anomaly.get("impact_amount", 0.0),
+                    "recommendation": anomaly.get("recommendation", ""),
+                    "created_at": datetime.utcnow().isoformat()
+                }
+                anomaly_records.append(payload)
+            
+            db.table("anomalies").insert(anomaly_records).execute()
+        
+        return {"message": "Anomalies detected successfully", "count": len(anomalies)}
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to detect anomalies: {str(e)}"
+        )
+
+# ============================================
+# ANOMALIES: GET ALL
+# ============================================
+@app.get("/api/anomalies", response_model=List[schemas.AnomalyResponse])
+def get_anomalies(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        result = (
+            db.table("anomalies")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .order("created_at", desc=True)
+            .execute()
+        )
+        
+        return result.data if result.data else []
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch anomalies: {str(e)}"
+        )
+
+# ============================================
+# DASHBOARD: GET STATS
+# ============================================
+@app.get("/api/dashboard", response_model=schemas.DashboardStats)
+def get_dashboard_stats(
+    period: str = "current_month",
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        # Get all transactions
+        transactions_result = (
+            db.table("transactions")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+        
+        transactions = transactions_result.data if transactions_result.data else []
+        
+        # Calculate stats
+        current_month = datetime.utcnow().month
+        current_year = datetime.utcnow().year
+        
+        total_income = sum(t["amount"] for t in transactions if t["transaction_type"] == "income")
+        total_expenses = sum(t["amount"] for t in transactions if t["transaction_type"] == "expense")
+        
+        this_month_expenses = sum(
+            t["amount"] for t in transactions 
+            if t["transaction_type"] == "expense" and 
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == current_month and
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == current_year
+        )
+        
+        last_month = current_month - 1 if current_month > 1 else 12
+        last_month_year = current_year if current_month > 1 else current_year - 1
+        
+        last_month_expenses = sum(
+            t["amount"] for t in transactions 
+            if t["transaction_type"] == "expense" and 
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == last_month and
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == last_month_year
+        )
+        
+        # Get anomaly count
+        anomalies_result = (
+            db.table("anomalies")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+        
+        anomaly_count = len(anomalies_result.data) if anomalies_result.data else 0
+        
+        # Get recent transactions
+        recent_transactions = sorted(
+            transactions,
+            key=lambda x: x["transaction_date"],
+            reverse=True
+        )[:5]
+        
+        return {
+            "total_income": total_income,
+            "total_expenses": total_expenses,
+            "savings": total_income - total_expenses,
+            "anomaly_count": anomaly_count,
+            "last_month_expenses": last_month_expenses,
+            "this_month_expenses": this_month_expenses,
+            "recent_transactions": recent_transactions
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch dashboard stats: {str(e)}"
+        )
+
+# ============================================
+# DASHBOARD: GET TRENDS
+# ============================================
+@app.get("/api/dashboard/trends")
+def get_dashboard_trends(
+    period: str = "current_month",
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        # Get transactions
+        transactions_result = (
+            db.table("transactions")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+        
+        transactions = transactions_result.data if transactions_result.data else []
+        
+        # Calculate trends by category
+        category_totals = {}
+        for t in transactions:
+            if t["transaction_type"] == "expense":
+                category = t["category"]
+                category_totals[category] = category_totals.get(category, 0) + t["amount"]
+        
+        return {"trends": category_totals}
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch trends: {str(e)}"
+        )
+
+# ============================================
+# SETTINGS: GET
+# ============================================
+@app.get("/api/settings", response_model=schemas.UserSettingsResponse)
+def get_settings(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        result = (
+            db.table("user_settings")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+        
+        if not result.data:
+            # Create default settings
+            payload = {
+                "user_id": current_user["id"],
+                "notifications_enabled": True,
+                "dark_mode": False,
+                "anomaly_alerts": True
+            }
+            
+            create_result = db.table("user_settings").insert(payload).execute()
+            return create_result.data[0]
+        
+        return result.data[0]
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch settings: {str(e)}"
+        )
+
+# ============================================
+# SETTINGS: UPDATE
+# ============================================
+@app.put("/api/settings", response_model=schemas.UserSettingsResponse)
+def update_settings(
+    settings_data: schemas.UserSettingsUpdate,
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        # Get existing settings
+        result = (
+            db.table("user_settings")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+        
+        update_data = settings_data.model_dump(exclude_unset=True)
+        
+        if not result.data:
+            # Create new settings
+            payload = {
+                "user_id": current_user["id"],
+                "notifications_enabled": update_data.get("notifications_enabled", True),
+                "dark_mode": update_data.get("dark_mode", False),
+                "anomaly_alerts": update_data.get("anomaly_alerts", True)
+            }
+            
+            create_result = db.table("user_settings").insert(payload).execute()
+            return create_result.data[0]
+        else:
+            # Update existing settings
+            settings_id = result.data[0]["id"]
+            
+            update_result = (
+                db.table("user_settings")
+                .update(update_data)
+                .eq("id", settings_id)
+                .execute()
+            )
+            
+            return update_result.data[0]
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update settings: {str(e)}"
+        )
+
+# ============================================
+# PROFILE: UPDATE
+# ============================================
+@app.put("/api/auth/me", response_model=schemas.UserResponse)
+def update_profile(
+    user_data: dict,
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        # Update user profile
+        update_data = {}
+        
+        if "name" in user_data:
+            update_data["name"] = user_data["name"]
+        if "phone" in user_data:
+            update_data["phone"] = user_data["phone"]
+        if "profile_photo" in user_data:
+            update_data["profile_photo"] = user_data["profile_photo"]
+        
+        if not update_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No valid fields to update"
+            )
+        
+        result = (
+            db.table("users")
+            .update(update_data)
+            .eq("id", current_user["id"])
+            .execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        return result.data[0]
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update profile: {str(e)}"
+        )
+
+# ============================================
+# INSIGHTS: GET
+# ============================================
+@app.get("/api/insights")
+def get_insights(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        # Get transactions
+        transactions_result = (
+            db.table("transactions")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+        
+        transactions = transactions_result.data if transactions_result.data else []
+        
+        # Calculate insights
+        total_expenses = sum(t["amount"] for t in transactions if t["transaction_type"] == "expense")
+        
+        # Category breakdown
+        category_breakdown = {}
+        for t in transactions:
+            if t["transaction_type"] == "expense":
+                category = t["category"]
+                category_breakdown[category] = category_breakdown.get(category, 0) + t["amount"]
+        
+        # Top spending category
+        top_category = max(category_breakdown.items(), key=lambda x: x[1]) if category_breakdown else ("None", 0)
+        
+        insights = {
+            "total_expenses": total_expenses,
+            "category_breakdown": category_breakdown,
+            "top_spending_category": top_category[0],
+            "top_spending_amount": top_category[1],
+            "transaction_count": len(transactions)
+        }
+        
+        return insights
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch insights: {str(e)}"
+        )
