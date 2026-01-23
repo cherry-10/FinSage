@@ -163,7 +163,7 @@ async def get_current_user_info(
     try:
         result = (
             db.table("users")
-            .select("id, name, email, phone, profile_photo, created_at")
+            .select("id, name, email, phone, profile_photo, annual_income, created_at")
             .eq("id", current_user["id"])
             .execute()
         )

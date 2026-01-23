@@ -17,7 +17,7 @@ const Profile = () => {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
-    annual_salary: user?.annual_salary || ''
+    annual_income: user?.annual_income || ''
   });
   const [passwordData, setPasswordData] = useState({
     old_password: '',
@@ -26,14 +26,14 @@ const Profile = () => {
   });
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  const monthlySalary = formData.annual_salary ? (parseFloat(formData.annual_salary) / 12).toFixed(2) : '0.00';
+  const monthlySalary = formData.annual_income ? (parseFloat(formData.annual_income) / 12).toFixed(2) : '0.00';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await updateUser({
         ...formData,
-        annual_salary: formData.annual_salary ? parseFloat(formData.annual_salary) : null
+        annual_income: formData.annual_income ? parseFloat(formData.annual_income) : null
       });
       setEditing(false);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
@@ -71,7 +71,7 @@ const Profile = () => {
     setFormData({
       name: user?.name || '',
       phone: user?.phone || '',
-      annual_salary: user?.annual_salary || ''
+      annual_income: user?.annual_income || ''
     });
     setEditing(false);
   };
@@ -235,15 +235,15 @@ const Profile = () => {
                           <DollarSign className={`absolute left-4 top-1/2 transform -translate-y-1/2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} size={20} />
                           <input
                             type="number"
-                            value={formData.annual_salary}
-                            onChange={(e) => setFormData({ ...formData, annual_salary: e.target.value })}
+                            value={formData.annual_income}
+                            onChange={(e) => setFormData({ ...formData, annual_income: e.target.value })}
                             placeholder="Enter annual salary"
                             className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all ${
                               isDark ? 'bg-gray-700 border-gray-600 text-white focus:border-primary-500' : 'bg-white border-gray-300 focus:border-primary-500'
                             }`}
                           />
                         </div>
-                        {formData.annual_salary && (
+                        {formData.annual_income && (
                           <div className={`mt-3 p-3 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gradient-to-r from-primary-50 to-success-50'}`}>
                             <p className={`text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                               💰 Monthly Salary: ₹{monthlySalary}
@@ -297,11 +297,11 @@ const Profile = () => {
                           <div>
                             <p className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'} uppercase tracking-wide`}>Annual Salary</p>
                             <p className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'} mt-0.5`}>
-                              {user?.annual_salary ? `₹${parseFloat(user.annual_salary).toLocaleString('en-IN')}` : 'Not set'}
+                              {user?.annual_income ? `₹${parseFloat(user.annual_income).toLocaleString('en-IN')}` : 'Not set'}
                             </p>
-                            {user?.annual_salary && (
+                            {user?.annual_income && (
                               <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-                                💰 Monthly: ₹{(parseFloat(user.annual_salary) / 12).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                                💰 Monthly: ₹{(parseFloat(user.annual_income) / 12).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                               </p>
                             )}
                           </div>
