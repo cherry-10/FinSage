@@ -68,15 +68,15 @@
   }
   
   .card-title {
-    @apply text-xl font-bold text-gray-900;
+    @apply text-xl font-bold;
   }
   
   .card-label {
-    @apply text-sm font-semibold text-gray-700;
+    @apply text-sm font-semibold;
   }
   
   .card-value {
-    @apply text-3xl font-bold text-gray-900;
+    @apply text-3xl font-bold;
   }
   
   /* Icon Containers */

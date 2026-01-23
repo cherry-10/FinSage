@@ -715,6 +715,8 @@ def get_dashboard_trends(
     db=Depends(get_db),
 ):
     try:
+        from collections import defaultdict
+        
         # Get transactions
         transactions_result = (
             db.table("transactions")
@@ -725,14 +727,77 @@ def get_dashboard_trends(
         
         transactions = transactions_result.data if transactions_result.data else []
         
-        # Calculate trends by category
-        category_totals = {}
-        for t in transactions:
-            if t["transaction_type"] == "expense":
-                category = t["category"]
-                category_totals[category] = category_totals.get(category, 0) + t["amount"]
+        # Get current month and year
+        current_month = datetime.utcnow().month
+        current_year = datetime.utcnow().year
         
-        return {"trends": category_totals}
+        # Calculate last month
+        last_month = current_month - 1 if current_month > 1 else 12
+        last_month_year = current_year if current_month > 1 else current_year - 1
+        
+        # Filter transactions by month
+        this_month_transactions = [
+            t for t in transactions
+            if t["transaction_type"] == "expense" and
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == current_month and
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == current_year
+        ]
+        
+        last_month_transactions = [
+            t for t in transactions
+            if t["transaction_type"] == "expense" and
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == last_month and
+            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == last_month_year
+        ]
+        
+        # Calculate daily trends for this month
+        this_month_daily = defaultdict(float)
+        for t in this_month_transactions:
+            date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).strftime("%d")
+            this_month_daily[date] += t["amount"]
+        
+        this_month_daily_data = [
+            {"date": date, "total": total}
+            for date, total in sorted(this_month_daily.items())
+        ]
+        
+        # Calculate daily trends for last month
+        last_month_daily = defaultdict(float)
+        for t in last_month_transactions:
+            date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).strftime("%d")
+            last_month_daily[date] += t["amount"]
+        
+        last_month_daily_data = [
+            {"date": date, "total": total}
+            for date, total in sorted(last_month_daily.items())
+        ]
+        
+        # Calculate category breakdown for this month
+        this_month_categories = defaultdict(float)
+        for t in this_month_transactions:
+            this_month_categories[t["category"]] += t["amount"]
+        
+        this_month_categories_data = [
+            {"category": cat, "total": total}
+            for cat, total in this_month_categories.items()
+        ]
+        
+        # Calculate category breakdown for last month
+        last_month_categories = defaultdict(float)
+        for t in last_month_transactions:
+            last_month_categories[t["category"]] += t["amount"]
+        
+        last_month_categories_data = [
+            {"category": cat, "total": total}
+            for cat, total in last_month_categories.items()
+        ]
+        
+        return {
+            "this_month_daily": this_month_daily_data,
+            "last_month_daily": last_month_daily_data,
+            "this_month_categories": this_month_categories_data,
+            "last_month_categories": last_month_categories_data
+        }
     
     except Exception as e:
         raise HTTPException(

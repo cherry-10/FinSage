@@ -162,9 +162,9 @@ const Dashboard = () => {
                 <div className="icon-container bg-gradient-to-br from-green-500 to-green-600">
                   <TrendingUp className="text-white" size={24} />
                 </div>
-                <span className={`card-label ${isDark ? 'text-gray-300' : ''}`}>Income</span>
+                <span className={`card-label ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Income</span>
               </div>
-              <h3 className="card-value mb-1">
+              <h3 className={`card-value mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 ₹{totalIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </h3>
               <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -178,9 +178,9 @@ const Dashboard = () => {
                 <div className="icon-container bg-gradient-to-br from-red-500 to-red-600">
                   <TrendingDown className="text-white" size={24} />
                 </div>
-                <span className={`card-label ${isDark ? 'text-gray-300' : ''}`}>Expenses</span>
+                <span className={`card-label ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Expenses</span>
               </div>
-              <h3 className="card-value mb-1">
+              <h3 className={`card-value mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 ₹{totalExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </h3>
               <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>This month</p>
@@ -192,9 +192,9 @@ const Dashboard = () => {
                 <div className="icon-container bg-gradient-to-br from-blue-500 to-blue-600">
                   <PiggyBank className="text-white" size={24} />
                 </div>
-                <span className={`card-label ${isDark ? 'text-gray-300' : ''}`}>Savings</span>
+                <span className={`card-label ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Savings</span>
               </div>
-              <h3 className="card-value mb-1">
+              <h3 className={`card-value mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 ₹{savings.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </h3>
               <p className={`text-sm font-semibold ${savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -208,9 +208,9 @@ const Dashboard = () => {
                 <div className="icon-container bg-gradient-to-br from-orange-500 to-orange-600">
                   <AlertTriangle className="text-white" size={24} />
                 </div>
-                <span className={`card-label ${isDark ? 'text-gray-300' : ''}`}>Alerts</span>
+                <span className={`card-label ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Alerts</span>
               </div>
-              <h3 className="card-value mb-1">
+              <h3 className={`card-value mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {stats?.anomaly_count || 0}
               </h3>
               <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Anomalies detected</p>
