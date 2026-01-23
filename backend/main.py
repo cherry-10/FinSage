@@ -152,6 +152,39 @@ def login(
         )
 
 # ============================================
+# AUTH: GET CURRENT USER
+# ============================================
+@app.get("/api/auth/me", response_model=schemas.UserResponse)
+async def get_current_user_info(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    """Get current authenticated user information"""
+    try:
+        result = (
+            db.table("users")
+            .select("id, name, email, phone, profile_photo, created_at")
+            .eq("id", current_user["id"])
+            .execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        return result.data[0]
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch user: {str(e)}"
+        )
+
+# ============================================
 # TRANSACTIONS: CREATE
 # ============================================
 @app.post("/api/transactions")
