@@ -43,12 +43,9 @@ def create_access_token(
         expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     
-    # Use SUPABASE_JWT_SECRET if available, otherwise use SECRET_KEY
-    jwt_secret = settings.SUPABASE_JWT_SECRET if settings.SUPABASE_JWT_SECRET else settings.SECRET_KEY
-    
     encoded_jwt = jwt.encode(
         to_encode, 
-        jwt_secret, 
+        settings.SECRET_KEY, 
         algorithm="HS256"
     )
     return encoded_jwt
@@ -70,13 +67,10 @@ async def get_current_user(
     )
     
     try:
-        # Use SUPABASE_JWT_SECRET if available, otherwise use SECRET_KEY
-        jwt_secret = settings.SUPABASE_JWT_SECRET if settings.SUPABASE_JWT_SECRET else settings.SECRET_KEY
-        
         # Verify the JWT token
         payload = jwt.decode(
             token,
-            jwt_secret,
+            settings.SECRET_KEY,
             algorithms=["HS256"]
         )
         
