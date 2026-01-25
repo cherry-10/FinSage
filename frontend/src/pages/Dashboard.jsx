@@ -221,7 +221,7 @@ const Dashboard = () => {
           <div className="grid-charts section-spacing">
             {/* 1. This Month Daily Trend */}
             <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-              <h2 className="card-title mb-4">
+              <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 This Month - Daily Expenses
               </h2>
               <ResponsiveContainer width="100%" height={300}>
@@ -244,7 +244,7 @@ const Dashboard = () => {
 
             {/* 2. Last Month Daily Trend */}
             <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-              <h2 className="card-title mb-4">
+              <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Last Month - Daily Expenses
               </h2>
               <ResponsiveContainer width="100%" height={300}>
@@ -267,7 +267,7 @@ const Dashboard = () => {
 
             {/* 3. This Month Category Expenses */}
             <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-              <h2 className="card-title mb-4">
+              <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 This Month - Category Breakdown
               </h2>
               <ResponsiveContainer width="100%" height={300}>
@@ -290,7 +290,7 @@ const Dashboard = () => {
 
             {/* 4. Last Month Category Expenses */}
             <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-              <h2 className="card-title mb-4">
+              <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Last Month - Category Breakdown
               </h2>
               <ResponsiveContainer width="100%" height={300}>

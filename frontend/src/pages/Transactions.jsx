@@ -23,7 +23,7 @@ const Transactions = () => {
     date: format(new Date(), 'yyyy-MM-dd')
   });
 
-  const expenseCategories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills', 'Healthcare', 'Education', 'Other'];
+  const expenseCategories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills', 'Rent', 'Healthcare', 'Education', 'Other'];
   const incomeCategories = ['Salary', 'Bonus', 'Incentives', 'Freelance', 'Investment', 'Gift', 'Other Income'];
 
   useEffect(() => {
@@ -140,20 +140,20 @@ const Transactions = () => {
           <div className="grid-stats section-spacing">
             <div className={`stat-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
               <div className="flex items-center justify-between mb-2">
-                <span className={`card-label ${isDark ? 'text-gray-300' : ''}`}>Total Income</span>
+                <span className={`card-label ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Total Income</span>
                 <TrendingUp className="text-green-600" size={20} />
               </div>
-              <p className="card-value">
+              <p className={`card-value ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 ₹{totalIncome.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
               </p>
             </div>
 
             <div className={`stat-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
               <div className="flex items-center justify-between mb-2">
-                <span className={`card-label ${isDark ? 'text-gray-300' : ''}`}>Total Expenses</span>
+                <span className={`card-label ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Total Expenses</span>
                 <TrendingDown className="text-red-600" size={20} />
               </div>
-              <p className="card-value">
+              <p className={`card-value ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 ₹{totalExpenses.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
               </p>
             </div>

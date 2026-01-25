@@ -213,6 +213,11 @@ const Budget = () => {
     value: cat.allocated
   })) || [];
 
+  const expenseChartData = budgetPlan?.categories?.map(cat => ({
+    name: cat.category,
+    value: cat.spent
+  })).filter(cat => cat.value > 0) || [];
+
   const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
   return (
@@ -311,9 +316,9 @@ const Budget = () => {
 
               {/* Charts and Categories */}
               <div className="grid-charts section-spacing">
-                {/* Pie Chart */}
+                {/* Budget Distribution Pie Chart */}
                 <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-                  <h3 className={`card-title mb-4 ${isDark ? 'text-white' : ''}`}>
+                  <h3 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     Budget Distribution
                   </h3>
                   <ResponsiveContainer width="100%" height={300}>
@@ -337,11 +342,38 @@ const Budget = () => {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Category List */}
+                {/* Current Month Expenses Pie Chart */}
                 <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-                  <h3 className={`card-title mb-4 ${isDark ? 'text-white' : ''}`}>
-                    Category Breakdown
+                  <h3 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Current Month Expenses
                   </h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={expenseChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {expenseChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Category Breakdown List */}
+              <div className={`card ${isDark ? 'bg-gray-800 border-gray-700' : ''} section-spacing`}>
+                <h3 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Category Breakdown
+                </h3>
                   <div className="space-y-3 max-h-[300px] overflow-y-auto">
                     {budgetPlan.categories?.map((category, index) => {
                       const percentage = (category.spent / category.allocated) * 100;
@@ -376,7 +408,6 @@ const Budget = () => {
                     })}
                   </div>
                 </div>
-              </div>
 
               {/* AI Insights */}
               <div className={`${isDark ? 'bg-blue-900 bg-opacity-20 border-blue-700' : 'bg-blue-50 border-blue-200'} rounded-2xl p-6 border`}>
