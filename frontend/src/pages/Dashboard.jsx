@@ -230,100 +230,150 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Charts Section - 4 Visuals */}
-          <div className="grid-charts section-spacing">
-            {/* 1. This Month Daily Trend */}
-            <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-              <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                This Month - Daily Expenses
-              </h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={trends?.this_month_daily || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
-                  <XAxis dataKey="date" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} />
-                  <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                      border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} name="Expenses" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+          {/* Charts Section - Conditional based on filter */}
+          {filter === 'all_time' ? (
+            <div className="grid-charts section-spacing">
+              {/* All Time Monthly Expenses Line Chart */}
+              <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
+                <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  All Time - Monthly Expenses
+                </h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={trends?.all_time_monthly_expenses || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                    <XAxis dataKey="month" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
+                    <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                        border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} name="Expenses" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
 
-            {/* 2. Last Month Daily Trend */}
-            <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-              <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Last Month - Daily Expenses
-              </h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={trends?.last_month_daily || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
-                  <XAxis dataKey="date" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} />
-                  <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                      border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="total" stroke="#ef4444" strokeWidth={3} name="Expenses" />
-                </LineChart>
-              </ResponsiveContainer>
+              {/* All Time Monthly Savings Bar Chart */}
+              <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
+                <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  All Time - Monthly Savings
+                </h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={trends?.all_time_monthly_savings || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                    <XAxis dataKey="month" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
+                    <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                        border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="savings" fill="#10b981" radius={[8, 8, 0, 0]} name="Savings" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
+          ) : (
+            <div className="grid-charts section-spacing">
+              {/* 1. This Month Daily Trend */}
+              <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
+                <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  This Month - Daily Expenses
+                </h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={trends?.this_month_daily || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                    <XAxis dataKey="date" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} />
+                    <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                        border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} name="Expenses" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
 
-            {/* 3. This Month Category Expenses */}
-            <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-              <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                This Month - Category Breakdown
-              </h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={trends?.this_month_categories || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
-                  <XAxis dataKey="category" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} />
-                  <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                      border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="total" fill="#10b981" radius={[8, 8, 0, 0]} name="Amount" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+              {/* 2. Last Month Daily Trend */}
+              <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
+                <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Last Month - Daily Expenses
+                </h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={trends?.last_month_daily || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                    <XAxis dataKey="date" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} />
+                    <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                        border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="total" stroke="#ef4444" strokeWidth={3} name="Expenses" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
 
-            {/* 4. Last Month Category Expenses */}
-            <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-              <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Last Month - Category Breakdown
-              </h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={trends?.last_month_categories || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
-                  <XAxis dataKey="category" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} />
-                  <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                      border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="total" fill="#f59e0b" radius={[8, 8, 0, 0]} name="Amount" />
-                </BarChart>
-              </ResponsiveContainer>
+              {/* 3. This Month Category Expenses */}
+              <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
+                <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  This Month - Category Breakdown
+                </h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={trends?.this_month_categories || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                    <XAxis dataKey="category" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} />
+                    <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                        border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="total" fill="#10b981" radius={[8, 8, 0, 0]} name="Amount" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* 4. Last Month Category Expenses */}
+              <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
+                <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Last Month - Category Breakdown
+                </h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={trends?.last_month_categories || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                    <XAxis dataKey="category" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} />
+                    <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                        border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="total" fill="#f59e0b" radius={[8, 8, 0, 0]} name="Amount" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Recent Transactions */}
           <div className={`card section-spacing ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>

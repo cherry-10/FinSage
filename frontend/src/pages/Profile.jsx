@@ -5,7 +5,7 @@ import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { authAPI } from '../services/api';
-import { User, Mail, Phone, DollarSign, Calendar, Camera, Settings, LogOut, Lock, Save, X, Edit, Shield, CreditCard, Activity, TrendingUp } from 'lucide-react';
+import { User, Mail, Phone, DollarSign, Calendar, Camera, Settings, LogOut, Lock, Save, X, Edit, Shield, CreditCard, Activity, TrendingUp, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
 const Profile = () => {

@@ -645,6 +645,11 @@ def get_dashboard_stats(
         if period == "all_time":
             # For all time, use all transactions
             selected_month_transactions = transactions
+            # Calculate total income from all income transactions
+            total_income = sum(
+                t["amount"] for t in transactions 
+                if t["transaction_type"] == "income"
+            )
         elif period == "last_month":
             selected_month = last_month
             selected_year = last_month_year
@@ -654,6 +659,7 @@ def get_dashboard_stats(
                 if datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == selected_month and
                 datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == selected_year
             ]
+            total_income = monthly_income
         else:  # current_month or default
             selected_month = current_month
             selected_year = current_year
@@ -663,8 +669,9 @@ def get_dashboard_stats(
                 if datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == selected_month and
                 datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == selected_year
             ]
+            total_income = monthly_income
         
-        # Calculate expenses for SELECTED month only (not all time)
+        # Calculate expenses for SELECTED period
         total_expenses = sum(
             t["amount"] for t in selected_month_transactions 
             if t["transaction_type"] == "expense"
@@ -715,9 +722,9 @@ def get_dashboard_stats(
         ]
         
         return {
-            "total_income": monthly_income,
+            "total_income": total_income,
             "total_expenses": total_expenses,
-            "savings": monthly_income - total_expenses,
+            "savings": total_income - total_expenses,
             "anomaly_count": anomaly_count,
             "last_month_expenses": last_month_expenses,
             "this_month_expenses": this_month_expenses,
@@ -818,11 +825,56 @@ def get_dashboard_trends(
             for cat, total in last_month_categories.items()
         ]
         
+        # Calculate all-time monthly trends if period is all_time
+        all_time_monthly_expenses = []
+        all_time_monthly_savings = []
+        
+        if period == "all_time":
+            # Get user's annual salary for income calculation
+            user_result = (
+                db.table("users")
+                .select("annual_salary")
+                .eq("user_id", current_user["id"])
+                .execute()
+            )
+            
+            monthly_income = 0
+            if user_result.data and user_result.data[0].get("annual_salary"):
+                annual_salary = float(user_result.data[0]["annual_salary"])
+                monthly_income = annual_salary / 12
+            
+            # Group all transactions by month-year
+            monthly_data = defaultdict(lambda: {"expenses": 0, "income": 0})
+            
+            for t in transactions:
+                date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                month_key = date.strftime("%b %Y")  # e.g., "Jan 2024"
+                
+                if t["transaction_type"] == "expense":
+                    monthly_data[month_key]["expenses"] += t["amount"]
+                elif t["transaction_type"] == "income":
+                    monthly_data[month_key]["income"] += t["amount"]
+            
+            # Sort by date and create chart data
+            sorted_months = sorted(monthly_data.items(), key=lambda x: datetime.strptime(x[0], "%b %Y"))
+            
+            all_time_monthly_expenses = [
+                {"month": month, "total": data["expenses"]}
+                for month, data in sorted_months
+            ]
+            
+            all_time_monthly_savings = [
+                {"month": month, "savings": data["income"] - data["expenses"]}
+                for month, data in sorted_months
+            ]
+        
         return {
             "this_month_daily": this_month_daily_data,
             "last_month_daily": last_month_daily_data,
             "this_month_categories": this_month_categories_data,
-            "last_month_categories": last_month_categories_data
+            "last_month_categories": last_month_categories_data,
+            "all_time_monthly_expenses": all_time_monthly_expenses,
+            "all_time_monthly_savings": all_time_monthly_savings
         }
     
     except Exception as e:
