@@ -624,6 +624,8 @@ def get_dashboard_stats(
             annual_salary = float(user_result.data[0]["annual_salary"])
             monthly_income = annual_salary / 12
         
+        print(f"User annual_salary: {user_result.data[0].get('annual_salary') if user_result.data else 'No data'}, Monthly income: {monthly_income}")
+        
         # Get all transactions
         transactions_result = (
             db.table("transactions")
@@ -671,6 +673,12 @@ def get_dashboard_stats(
             print(f"All Time - Unique months with expenses: {num_months}")
             print(f"All Time - Monthly income from salary: {monthly_income}")
             
+            # Calculate total expenses for All Time to use as baseline
+            total_all_time_expenses = sum(
+                t["amount"] for t in transactions 
+                if t.get("transaction_type") == "expense"
+            )
+            
             # If no income transactions, estimate from annual salary and number of months with expenses
             if income_from_transactions == 0 and monthly_income > 0:
                 total_income = monthly_income * num_months
@@ -679,9 +687,13 @@ def get_dashboard_stats(
                 total_income = income_from_transactions
                 print(f"All Time - Using actual income transactions: {total_income}")
             else:
-                # No income data at all, use monthly salary * months
-                total_income = monthly_income * num_months if monthly_income > 0 else 0
-                print(f"All Time - Fallback income: {total_income}")
+                # No income data at all - estimate as expenses + 20% buffer for positive savings
+                if total_all_time_expenses > 0:
+                    total_income = total_all_time_expenses * 1.2
+                    print(f"All Time - No salary/income data, estimating as expenses * 1.2: {total_income}")
+                else:
+                    total_income = 0
+                    print(f"All Time - No data available, income: 0")
         elif period == "last_month":
             selected_month = last_month
             selected_year = last_month_year
