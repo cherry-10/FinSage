@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 
 const Profile = () => {
   const { user, updateUser, logout } = useAuth();
-  const { isDark } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
@@ -24,6 +24,7 @@ const Profile = () => {
     new_password: '',
     confirm_password: ''
   });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
 
   const monthlySalary = formData.annual_salary ? (parseFloat(formData.annual_salary) / 12).toFixed(2) : '0.00';
@@ -322,8 +323,55 @@ const Profile = () => {
               {/* Settings Tab */}
               {activeTab === 'settings' && (
                 <div className="space-y-6">
-                  {/* Change Password */}
+                  {/* Preferences Section */}
                   <div>
+                    <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4 flex items-center space-x-2`}>
+                      <Settings size={24} />
+                      <span>Preferences</span>
+                    </h3>
+                    <div className="space-y-4">
+                      {/* Dark Mode Toggle */}
+                      <div className={`flex items-center justify-between p-4 sm:p-5 ${isDark ? 'bg-gray-700/50' : 'bg-gradient-to-r from-gray-50 to-gray-100'} rounded-xl border-2 ${isDark ? 'border-gray-600' : 'border-gray-200'} hover:shadow-lg transition-all`}>
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-gray-600' : 'bg-white'} flex items-center justify-center`}>
+                            <Settings className={isDark ? 'text-primary-400' : 'text-primary-600'} size={22} />
+                          </div>
+                          <div>
+                            <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Dark Mode</p>
+                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-0.5`}>Toggle dark theme</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={toggleTheme}
+                          className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${isDark ? 'bg-primary-600' : 'bg-gray-300'}`}
+                        >
+                          <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${isDark ? 'translate-x-7' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+
+                      {/* Notifications Toggle */}
+                      <div className={`flex items-center justify-between p-4 sm:p-5 ${isDark ? 'bg-gray-700/50' : 'bg-gradient-to-r from-gray-50 to-gray-100'} rounded-xl border-2 ${isDark ? 'border-gray-600' : 'border-gray-200'} hover:shadow-lg transition-all`}>
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-gray-600' : 'bg-white'} flex items-center justify-center`}>
+                            <AlertTriangle className={isDark ? 'text-orange-400' : 'text-orange-600'} size={22} />
+                          </div>
+                          <div>
+                            <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Notifications</p>
+                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-0.5`}>Enable push notifications</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                          className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${notificationsEnabled ? 'bg-primary-600' : 'bg-gray-300'}`}
+                        >
+                          <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${notificationsEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Change Password */}
+                  <div className={`pt-6 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                     <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4 flex items-center space-x-2`}>
                       <Lock size={24} />
                       <span>Change Password</span>

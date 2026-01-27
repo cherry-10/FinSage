@@ -43,7 +43,10 @@ const Dashboard = () => {
   const fetchDashboardStats = async () => {
     setLoading(true);
     try {
-      const period = filter === 'this_month' ? 'current_month' : 'last_month';
+      let period = 'current_month';
+      if (filter === 'last_month') period = 'last_month';
+      else if (filter === 'all_time') period = 'all_time';
+      
       const [statsResponse, trendsResponse] = await Promise.all([
         dashboardAPI.getStats(period),
         dashboardAPI.getTrends(period)
@@ -123,7 +126,7 @@ const Dashboard = () => {
 
           {/* Filter Buttons */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setFilter('this_month')}
                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
@@ -143,6 +146,16 @@ const Dashboard = () => {
                 }`}
               >
                 Last Month
+              </button>
+              <button
+                onClick={() => setFilter('all_time')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  filter === 'all_time'
+                    ? 'bg-primary-600 text-white shadow-lg'
+                    : isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                All Time
               </button>
             </div>
             <button

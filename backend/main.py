@@ -642,19 +642,27 @@ def get_dashboard_stats(
         last_month_year = current_year if current_month > 1 else current_year - 1
         
         # Determine which month to show based on period parameter
-        if period == "last_month":
+        if period == "all_time":
+            # For all time, use all transactions
+            selected_month_transactions = transactions
+        elif period == "last_month":
             selected_month = last_month
             selected_year = last_month_year
+            # Filter transactions for last month only
+            selected_month_transactions = [
+                t for t in transactions
+                if datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == selected_month and
+                datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == selected_year
+            ]
         else:  # current_month or default
             selected_month = current_month
             selected_year = current_year
-        
-        # Filter transactions for the selected month only
-        selected_month_transactions = [
-            t for t in transactions
-            if datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == selected_month and
-            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == selected_year
-        ]
+            # Filter transactions for current month only
+            selected_month_transactions = [
+                t for t in transactions
+                if datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == selected_month and
+                datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == selected_year
+            ]
         
         # Calculate expenses for SELECTED month only (not all time)
         total_expenses = sum(
@@ -958,6 +966,66 @@ def update_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update profile: {str(e)}"
+        )
+
+# ============================================
+# AUTH: CHANGE PASSWORD
+# ============================================
+@app.post("/api/auth/change-password")
+def change_password(
+    password_data: dict,
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        # Get current user from database
+        user_result = (
+            db.table("users")
+            .select("*")
+            .eq("id", current_user["id"])
+            .execute()
+        )
+        
+        if not user_result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        user = user_result.data[0]
+        
+        # Verify old password
+        if not auth.verify_password(password_data.get("old_password"), user["password_hash"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Current password is incorrect"
+            )
+        
+        # Hash new password
+        new_password_hash = auth.hash_password(password_data.get("new_password"))
+        
+        # Update password
+        update_result = (
+            db.table("users")
+            .update({"password_hash": new_password_hash})
+            .eq("id", current_user["id"])
+            .execute()
+        )
+        
+        if not update_result.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update password"
+            )
+        
+        return {"message": "Password changed successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to change password: {str(e)}"
         )
 
 # ============================================
