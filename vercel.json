@@ -4,5 +4,11 @@
   "framework": "vite",
   "env": {
     "VITE_API_URL": "https://finsage-xabw.onrender.com"
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }

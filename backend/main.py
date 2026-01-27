@@ -651,25 +651,37 @@ def get_dashboard_stats(
                     t["amount"] for t in transactions 
                     if t.get("transaction_type") == "income"
                 )
+                print(f"All Time - Income from transactions: {income_from_transactions}")
             except Exception as e:
                 print(f"Error calculating income from transactions: {str(e)}")
                 income_from_transactions = 0
             
-            # If no income transactions, estimate from annual salary and number of months with expenses
-            if income_from_transactions == 0 and monthly_income > 0:
-                # Count unique months with transactions
-                unique_months = set()
-                for t in transactions:
-                    try:
+            # Count unique months with expenses to calculate estimated income
+            unique_months = set()
+            for t in transactions:
+                try:
+                    if t.get("transaction_type") == "expense":
                         date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
                         unique_months.add((date.year, date.month))
-                    except Exception as e:
-                        print(f"Error parsing date for unique months: {str(e)}")
-                        continue
-                num_months = len(unique_months) if unique_months else 1
+                except Exception as e:
+                    print(f"Error parsing date for unique months: {str(e)}")
+                    continue
+            
+            num_months = len(unique_months) if unique_months else 1
+            print(f"All Time - Unique months with expenses: {num_months}")
+            print(f"All Time - Monthly income from salary: {monthly_income}")
+            
+            # If no income transactions, estimate from annual salary and number of months with expenses
+            if income_from_transactions == 0 and monthly_income > 0:
                 total_income = monthly_income * num_months
-            else:
+                print(f"All Time - Using estimated income: {total_income} ({monthly_income} * {num_months})")
+            elif income_from_transactions > 0:
                 total_income = income_from_transactions
+                print(f"All Time - Using actual income transactions: {total_income}")
+            else:
+                # No income data at all, use monthly salary * months
+                total_income = monthly_income * num_months if monthly_income > 0 else 0
+                print(f"All Time - Fallback income: {total_income}")
         elif period == "last_month":
             selected_month = last_month
             selected_year = last_month_year
@@ -756,10 +768,13 @@ def get_dashboard_stats(
             for cat, total in category_totals.items()
         ]
         
+        savings = total_income - total_expenses
+        print(f"Dashboard Stats - Period: {period}, Income: {total_income}, Expenses: {total_expenses}, Savings: {savings}")
+        
         return {
             "total_income": total_income,
             "total_expenses": total_expenses,
-            "savings": total_income - total_expenses,
+            "savings": savings,
             "anomaly_count": anomaly_count,
             "last_month_expenses": last_month_expenses,
             "this_month_expenses": this_month_expenses,
