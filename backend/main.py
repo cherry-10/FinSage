@@ -845,7 +845,7 @@ def get_dashboard_trends(
             user_result = (
                 db.table("users")
                 .select("annual_salary")
-                .eq("user_id", current_user["id"])
+                .eq("id", current_user["id"])
                 .execute()
             )
             
