@@ -692,35 +692,50 @@ def get_dashboard_stats(
             total_income = monthly_income
         
         # Calculate expenses for SELECTED period
-        total_expenses = sum(
-            t["amount"] for t in selected_month_transactions 
-            if t["transaction_type"] == "expense"
-        )
+        try:
+            total_expenses = sum(
+                t["amount"] for t in selected_month_transactions 
+                if t.get("transaction_type") == "expense"
+            )
+        except Exception as e:
+            print(f"Error calculating total expenses: {str(e)}")
+            total_expenses = 0
         
         # Calculate this month and last month for comparison
-        this_month_expenses = sum(
-            t["amount"] for t in transactions 
-            if t["transaction_type"] == "expense" and 
-            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == current_month and
-            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == current_year
-        )
+        try:
+            this_month_expenses = sum(
+                t["amount"] for t in transactions 
+                if t.get("transaction_type") == "expense" and 
+                datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == current_month and
+                datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == current_year
+            )
+        except Exception as e:
+            print(f"Error calculating this month expenses: {str(e)}")
+            this_month_expenses = 0
         
-        last_month_expenses = sum(
-            t["amount"] for t in transactions 
-            if t["transaction_type"] == "expense" and 
-            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == last_month and
-            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == last_month_year
-        )
+        try:
+            last_month_expenses = sum(
+                t["amount"] for t in transactions 
+                if t.get("transaction_type") == "expense" and 
+                datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == last_month and
+                datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == last_month_year
+            )
+        except Exception as e:
+            print(f"Error calculating last month expenses: {str(e)}")
+            last_month_expenses = 0
         
         # Get anomaly count
-        anomalies_result = (
-            db.table("anomalies")
-            .select("*")
-            .eq("user_id", current_user["id"])
-            .execute()
-        )
-        
-        anomaly_count = len(anomalies_result.data) if anomalies_result.data else 0
+        try:
+            anomalies_result = (
+                db.table("anomalies")
+                .select("*")
+                .eq("user_id", current_user["id"])
+                .execute()
+            )
+            anomaly_count = len(anomalies_result.data) if anomalies_result.data else 0
+        except Exception as e:
+            print(f"Error fetching anomalies: {str(e)}")
+            anomaly_count = 0
         
         # Get recent transactions for selected month
         recent_transactions = sorted(
@@ -852,17 +867,21 @@ def get_dashboard_trends(
         if period == "all_time":
             try:
                 # Get user's annual salary for income calculation
-                user_result = (
-                    db.table("users")
-                    .select("annual_salary")
-                    .eq("id", current_user["id"])
-                    .execute()
-                )
-                
                 monthly_income_salary = 0
-                if user_result.data and len(user_result.data) > 0 and user_result.data[0].get("annual_salary"):
-                    annual_salary = float(user_result.data[0]["annual_salary"])
-                    monthly_income_salary = annual_salary / 12
+                try:
+                    user_result = (
+                        db.table("users")
+                        .select("annual_salary")
+                        .eq("id", current_user["id"])
+                        .execute()
+                    )
+                    
+                    if user_result.data and len(user_result.data) > 0 and user_result.data[0].get("annual_salary"):
+                        annual_salary = float(user_result.data[0]["annual_salary"])
+                        monthly_income_salary = annual_salary / 12
+                except Exception as db_error:
+                    print(f"Error fetching user salary: {str(db_error)}")
+                    monthly_income_salary = 0
                 
                 # Group all transactions by month-year
                 monthly_data = defaultdict(lambda: {"expenses": 0, "income": 0})
