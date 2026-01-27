@@ -181,7 +181,7 @@ const Dashboard = () => {
                 ₹{totalIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </h3>
               <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                {user?.annual_salary ? 'From annual salary' : 'This month'}
+                {filter === 'all_time' ? 'All time total' : filter === 'last_month' ? 'Last month' : 'This month'}
               </p>
             </div>
 
@@ -196,7 +196,9 @@ const Dashboard = () => {
               <h3 className={`card-value mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 ₹{totalExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </h3>
-              <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>This month</p>
+              <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                {filter === 'all_time' ? 'All time total' : filter === 'last_month' ? 'Last month' : 'This month'}
+              </p>
             </div>
 
             {/* Savings Card */}
@@ -211,7 +213,7 @@ const Dashboard = () => {
                 ₹{savings.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </h3>
               <p className={`text-sm font-semibold ${savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {savingsPercentage}% of income
+                {savingsPercentage}% of income • {filter === 'all_time' ? 'All time' : filter === 'last_month' ? 'Last month' : 'This month'}
               </p>
             </div>
 
