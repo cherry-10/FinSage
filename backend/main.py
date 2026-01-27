@@ -646,17 +646,26 @@ def get_dashboard_stats(
             # For all time, use all transactions
             selected_month_transactions = transactions
             # Calculate total income from all income transactions
-            income_from_transactions = sum(
-                t["amount"] for t in transactions 
-                if t["transaction_type"] == "income"
-            )
+            try:
+                income_from_transactions = sum(
+                    t["amount"] for t in transactions 
+                    if t.get("transaction_type") == "income"
+                )
+            except Exception as e:
+                print(f"Error calculating income from transactions: {str(e)}")
+                income_from_transactions = 0
+            
             # If no income transactions, estimate from annual salary and number of months with expenses
             if income_from_transactions == 0 and monthly_income > 0:
                 # Count unique months with transactions
                 unique_months = set()
                 for t in transactions:
-                    date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
-                    unique_months.add((date.year, date.month))
+                    try:
+                        date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                        unique_months.add((date.year, date.month))
+                    except Exception as e:
+                        print(f"Error parsing date for unique months: {str(e)}")
+                        continue
                 num_months = len(unique_months) if unique_months else 1
                 total_income = monthly_income * num_months
             else:
@@ -841,47 +850,64 @@ def get_dashboard_trends(
         all_time_monthly_savings = []
         
         if period == "all_time":
-            # Get user's annual salary for income calculation
-            user_result = (
-                db.table("users")
-                .select("annual_salary")
-                .eq("id", current_user["id"])
-                .execute()
-            )
-            
-            monthly_income_salary = 0
-            if user_result.data and user_result.data[0].get("annual_salary"):
-                annual_salary = float(user_result.data[0]["annual_salary"])
-                monthly_income_salary = annual_salary / 12
-            
-            # Group all transactions by month-year
-            monthly_data = defaultdict(lambda: {"expenses": 0, "income": 0})
-            
-            for t in transactions:
-                date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
-                month_key = date.strftime("%b %Y")  # e.g., "Jan 2024"
+            try:
+                # Get user's annual salary for income calculation
+                user_result = (
+                    db.table("users")
+                    .select("annual_salary")
+                    .eq("id", current_user["id"])
+                    .execute()
+                )
                 
-                if t["transaction_type"] == "expense":
-                    monthly_data[month_key]["expenses"] += t["amount"]
-                elif t["transaction_type"] == "income":
-                    monthly_data[month_key]["income"] += t["amount"]
-            
-            # Sort by date and create chart data
-            sorted_months = sorted(monthly_data.items(), key=lambda x: datetime.strptime(x[0], "%b %Y"))
-            
-            all_time_monthly_expenses = [
-                {"month": month, "total": data["expenses"]}
-                for month, data in sorted_months
-            ]
-            
-            # For savings, use actual income transactions or monthly salary if no income transactions
-            all_time_monthly_savings = [
-                {
-                    "month": month, 
-                    "savings": (data["income"] if data["income"] > 0 else monthly_income_salary) - data["expenses"]
-                }
-                for month, data in sorted_months
-            ]
+                monthly_income_salary = 0
+                if user_result.data and len(user_result.data) > 0 and user_result.data[0].get("annual_salary"):
+                    annual_salary = float(user_result.data[0]["annual_salary"])
+                    monthly_income_salary = annual_salary / 12
+                
+                # Group all transactions by month-year
+                monthly_data = defaultdict(lambda: {"expenses": 0, "income": 0})
+                
+                for t in transactions:
+                    try:
+                        date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                        month_key = date.strftime("%b %Y")  # e.g., "Jan 2024"
+                        
+                        if t["transaction_type"] == "expense":
+                            monthly_data[month_key]["expenses"] += t["amount"]
+                        elif t["transaction_type"] == "income":
+                            monthly_data[month_key]["income"] += t["amount"]
+                    except Exception as date_error:
+                        print(f"Error parsing transaction date: {t.get('transaction_date')}, error: {str(date_error)}")
+                        continue
+                
+                # Sort by date and create chart data - handle empty data
+                if monthly_data:
+                    try:
+                        sorted_months = sorted(monthly_data.items(), key=lambda x: datetime.strptime(x[0], "%b %Y"))
+                    except Exception as sort_error:
+                        print(f"Error sorting months: {str(sort_error)}")
+                        sorted_months = list(monthly_data.items())
+                    
+                    all_time_monthly_expenses = [
+                        {"month": month, "total": data["expenses"]}
+                        for month, data in sorted_months
+                    ]
+                    
+                    # For savings, use actual income transactions or monthly salary if no income transactions
+                    all_time_monthly_savings = [
+                        {
+                            "month": month, 
+                            "savings": (data["income"] if data["income"] > 0 else monthly_income_salary) - data["expenses"]
+                        }
+                        for month, data in sorted_months
+                    ]
+                else:
+                    all_time_monthly_expenses = []
+                    all_time_monthly_savings = []
+            except Exception as all_time_error:
+                print(f"Error calculating all time trends: {str(all_time_error)}")
+                all_time_monthly_expenses = []
+                all_time_monthly_savings = []
         
         return {
             "this_month_daily": this_month_daily_data,
