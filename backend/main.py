@@ -646,10 +646,21 @@ def get_dashboard_stats(
             # For all time, use all transactions
             selected_month_transactions = transactions
             # Calculate total income from all income transactions
-            total_income = sum(
+            income_from_transactions = sum(
                 t["amount"] for t in transactions 
                 if t["transaction_type"] == "income"
             )
+            # If no income transactions, estimate from annual salary and number of months with expenses
+            if income_from_transactions == 0 and monthly_income > 0:
+                # Count unique months with transactions
+                unique_months = set()
+                for t in transactions:
+                    date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                    unique_months.add((date.year, date.month))
+                num_months = len(unique_months) if unique_months else 1
+                total_income = monthly_income * num_months
+            else:
+                total_income = income_from_transactions
         elif period == "last_month":
             selected_month = last_month
             selected_year = last_month_year
@@ -838,10 +849,10 @@ def get_dashboard_trends(
                 .execute()
             )
             
-            monthly_income = 0
+            monthly_income_salary = 0
             if user_result.data and user_result.data[0].get("annual_salary"):
                 annual_salary = float(user_result.data[0]["annual_salary"])
-                monthly_income = annual_salary / 12
+                monthly_income_salary = annual_salary / 12
             
             # Group all transactions by month-year
             monthly_data = defaultdict(lambda: {"expenses": 0, "income": 0})
@@ -863,8 +874,12 @@ def get_dashboard_trends(
                 for month, data in sorted_months
             ]
             
+            # For savings, use actual income transactions or monthly salary if no income transactions
             all_time_monthly_savings = [
-                {"month": month, "savings": data["income"] - data["expenses"]}
+                {
+                    "month": month, 
+                    "savings": (data["income"] if data["income"] > 0 else monthly_income_salary) - data["expenses"]
+                }
                 for month, data in sorted_months
             ]
         

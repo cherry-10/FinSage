@@ -238,22 +238,30 @@ const Dashboard = () => {
                 <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   All Time - Monthly Expenses
                 </h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={trends?.all_time_monthly_expenses || []}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
-                    <XAxis dataKey="month" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                    <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                        border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} name="Expenses" />
-                  </LineChart>
-                </ResponsiveContainer>
+                {trends?.all_time_monthly_expenses && trends.all_time_monthly_expenses.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={trends.all_time_monthly_expenses}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                      <XAxis dataKey="month" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
+                      <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                          border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Legend />
+                      <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} name="Expenses" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px]">
+                    <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-center`}>
+                      No expense data available. Start adding transactions to see your spending trends.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* All Time Monthly Savings Bar Chart */}
@@ -261,22 +269,30 @@ const Dashboard = () => {
                 <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   All Time - Monthly Savings
                 </h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={trends?.all_time_monthly_savings || []}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
-                    <XAxis dataKey="month" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                    <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                        border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Legend />
-                    <Bar dataKey="savings" fill="#10b981" radius={[8, 8, 0, 0]} name="Savings" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {trends?.all_time_monthly_savings && trends.all_time_monthly_savings.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={trends.all_time_monthly_savings}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                      <XAxis dataKey="month" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
+                      <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                          border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="savings" fill="#10b981" radius={[8, 8, 0, 0]} name="Savings" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px]">
+                    <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-center`}>
+                      No savings data available. Start adding transactions to track your savings.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
