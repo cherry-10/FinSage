@@ -47,10 +47,16 @@ const Dashboard = () => {
       if (filter === 'last_month') period = 'last_month';
       else if (filter === 'all_time') period = 'all_time';
       
+      console.log('Fetching dashboard data with period:', period);
+      
       const [statsResponse, trendsResponse] = await Promise.all([
         dashboardAPI.getStats(period),
         dashboardAPI.getTrends(period)
       ]);
+      
+      console.log('Stats Response:', statsResponse.data);
+      console.log('Trends Response:', trendsResponse.data);
+      
       setStats(statsResponse.data);
       setTrends(trendsResponse.data);
     } catch (error) {
