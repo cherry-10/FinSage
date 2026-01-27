@@ -658,42 +658,32 @@ def get_dashboard_stats(
                 print(f"Error calculating income from transactions: {str(e)}")
                 income_from_transactions = 0
             
-            # Count unique months with expenses to calculate estimated income
+            # Count unique months with ANY transactions (income or expense)
             unique_months = set()
             for t in transactions:
                 try:
-                    if t.get("transaction_type") == "expense":
-                        date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
-                        unique_months.add((date.year, date.month))
+                    date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                    unique_months.add((date.year, date.month))
                 except Exception as e:
                     print(f"Error parsing date for unique months: {str(e)}")
                     continue
             
             num_months = len(unique_months) if unique_months else 1
-            print(f"All Time - Unique months with expenses: {num_months}")
+            print(f"All Time - Unique months with data: {num_months}")
             print(f"All Time - Monthly income from salary: {monthly_income}")
             
-            # Calculate total expenses for All Time to use as baseline
-            total_all_time_expenses = sum(
-                t["amount"] for t in transactions 
-                if t.get("transaction_type") == "expense"
-            )
-            
-            # If no income transactions, estimate from annual salary and number of months with expenses
-            if income_from_transactions == 0 and monthly_income > 0:
-                total_income = monthly_income * num_months
-                print(f"All Time - Using estimated income: {total_income} ({monthly_income} * {num_months})")
-            elif income_from_transactions > 0:
+            # Calculate income: Use actual income transactions OR monthly_income × number_of_months
+            if income_from_transactions > 0:
                 total_income = income_from_transactions
                 print(f"All Time - Using actual income transactions: {total_income}")
+            elif monthly_income > 0:
+                # Use monthly income × number of months with data
+                total_income = monthly_income * num_months
+                print(f"All Time - Using estimated income: {total_income} ({monthly_income} × {num_months} months)")
             else:
-                # No income data at all - estimate as expenses + 20% buffer for positive savings
-                if total_all_time_expenses > 0:
-                    total_income = total_all_time_expenses * 1.2
-                    print(f"All Time - No salary/income data, estimating as expenses * 1.2: {total_income}")
-                else:
-                    total_income = 0
-                    print(f"All Time - No data available, income: 0")
+                # No salary set - income is 0
+                total_income = 0
+                print(f"All Time - No salary or income data, income: 0")
         elif period == "last_month":
             selected_month = last_month
             selected_year = last_month_year
