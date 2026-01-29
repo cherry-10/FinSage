@@ -24,16 +24,16 @@ const Footer = () => {
               AI-powered financial management platform helping you budget smarter, save more, and achieve your financial goals faster.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className={`${isDark ? 'text-gray-400 hover:text-primary-400' : 'text-gray-600 hover:text-primary-600'} transition-colors`}>
+              <a href="https://github.com/cherry-10/" target="_blank" rel="noopener noreferrer" className={`${isDark ? 'text-gray-400 hover:text-primary-400' : 'text-gray-600 hover:text-primary-600'} transition-colors`}>
                 <Github size={20} />
               </a>
               <a href="#" className={`${isDark ? 'text-gray-400 hover:text-primary-400' : 'text-gray-600 hover:text-primary-600'} transition-colors`}>
                 <Twitter size={20} />
               </a>
-              <a href="#" className={`${isDark ? 'text-gray-400 hover:text-primary-400' : 'text-gray-600 hover:text-primary-600'} transition-colors`}>
+              <a href="https://www.linkedin.com/in/charan-teja-995a0a31a/" target="_blank" rel="noopener noreferrer" className={`${isDark ? 'text-gray-400 hover:text-primary-400' : 'text-gray-600 hover:text-primary-600'} transition-colors`}>
                 <Linkedin size={20} />
               </a>
-              <a href="#" className={`${isDark ? 'text-gray-400 hover:text-primary-400' : 'text-gray-600 hover:text-primary-600'} transition-colors`}>
+              <a href="mailto:charanteja1039@gmail.com" className={`${isDark ? 'text-gray-400 hover:text-primary-400' : 'text-gray-600 hover:text-primary-600'} transition-colors`}>
                 <Mail size={20} />
               </a>
             </div>

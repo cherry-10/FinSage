@@ -672,18 +672,13 @@ def get_dashboard_stats(
             print(f"All Time - Unique months with data: {num_months}")
             print(f"All Time - Monthly income from salary: {monthly_income}")
             
-            # Calculate income: Use actual income transactions OR monthly_income × number_of_months
-            if income_from_transactions > 0:
-                total_income = income_from_transactions
-                print(f"All Time - Using actual income transactions: {total_income}")
-            elif monthly_income > 0:
-                # Use monthly income × number of months with data
-                total_income = monthly_income * num_months
-                print(f"All Time - Using estimated income: {total_income} ({monthly_income} × {num_months} months)")
-            else:
-                # No salary set - income is 0
-                total_income = 0
-                print(f"All Time - No salary or income data, income: 0")
+            # Calculate income: salary × months + positive income transactions
+            salary_income = monthly_income * num_months if monthly_income > 0 else 0
+            total_income = salary_income + income_from_transactions
+            
+            print(f"All Time - Salary income: {salary_income} ({monthly_income} × {num_months} months)")
+            print(f"All Time - Positive transactions: {income_from_transactions}")
+            print(f"All Time - Total income: {total_income}")
         elif period == "last_month":
             selected_month = last_month
             selected_year = last_month_year
