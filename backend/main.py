@@ -683,21 +683,29 @@ def get_dashboard_stats(
             selected_month = last_month
             selected_year = last_month_year
             # Filter transactions for last month only
-            selected_month_transactions = [
-                t for t in transactions
-                if datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == selected_month and
-                datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == selected_year
-            ]
+            selected_month_transactions = []
+            for t in transactions:
+                try:
+                    date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                    if date.month == selected_month and date.year == selected_year:
+                        selected_month_transactions.append(t)
+                except Exception as e:
+                    print(f"Error parsing transaction date for last month: {t.get('transaction_date')}, error: {str(e)}")
+                    continue
             total_income = monthly_income
         else:  # current_month or default
             selected_month = current_month
             selected_year = current_year
             # Filter transactions for current month only
-            selected_month_transactions = [
-                t for t in transactions
-                if datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == selected_month and
-                datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == selected_year
-            ]
+            selected_month_transactions = []
+            for t in transactions:
+                try:
+                    date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                    if date.month == selected_month and date.year == selected_year:
+                        selected_month_transactions.append(t)
+                except Exception as e:
+                    print(f"Error parsing transaction date for current month: {t.get('transaction_date')}, error: {str(e)}")
+                    continue
             total_income = monthly_income
         
         # Calculate expenses for SELECTED period
