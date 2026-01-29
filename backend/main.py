@@ -421,6 +421,27 @@ def generate_budget(
             .execute()
         )
         
+        # Get user's annual salary as fallback
+        user_result = (
+            db.table("users")
+            .select("annual_salary")
+            .eq("id", current_user["id"])
+            .execute()
+        )
+        
+        # Determine income
+        income = None
+        if income_result.data and income_result.data[0].get("monthly_income"):
+            income = income_result.data[0]["monthly_income"]
+        elif user_result.data and user_result.data[0].get("annual_salary"):
+            income = float(user_result.data[0]["annual_salary"]) / 12
+        
+        if not income:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please set your annual salary in Profile settings first"
+            )
+        
         # Get latest expense limit
         limit_result = (
             db.table("expense_limits")
@@ -431,14 +452,12 @@ def generate_budget(
             .execute()
         )
         
-        if not income_result.data or not limit_result.data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Please set your income and expense limits first"
-            )
-        
-        income = income_result.data[0]["monthly_income"]
-        expense_limit = limit_result.data[0]["monthly_limit"]
+        # Use 80% of income as default expense limit if not set
+        expense_limit = None
+        if limit_result.data and limit_result.data[0].get("monthly_limit"):
+            expense_limit = limit_result.data[0]["monthly_limit"]
+        else:
+            expense_limit = income * 0.8  # Default to 80% of income
         
         # Get user transactions for AI analysis
         transactions_result = (
@@ -823,20 +842,21 @@ def get_dashboard_trends(
         last_month = current_month - 1 if current_month > 1 else 12
         last_month_year = current_year if current_month > 1 else current_year - 1
         
-        # Filter transactions by month
-        this_month_transactions = [
-            t for t in transactions
-            if t["transaction_type"] == "expense" and
-            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == current_month and
-            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == current_year
-        ]
+        # Filter transactions by month with error handling
+        this_month_transactions = []
+        last_month_transactions = []
         
-        last_month_transactions = [
-            t for t in transactions
-            if t["transaction_type"] == "expense" and
-            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).month == last_month and
-            datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00")).year == last_month_year
-        ]
+        for t in transactions:
+            try:
+                if t["transaction_type"] == "expense":
+                    date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                    if date.month == current_month and date.year == current_year:
+                        this_month_transactions.append(t)
+                    elif date.month == last_month and date.year == last_month_year:
+                        last_month_transactions.append(t)
+            except Exception as e:
+                print(f"Error parsing transaction date in trends: {t.get('transaction_date')}, error: {str(e)}")
+                continue
         
         # Calculate daily trends for this month
         this_month_daily = defaultdict(float)
