@@ -57,10 +57,42 @@ const Dashboard = () => {
       console.log('Stats Response:', statsResponse.data);
       console.log('Trends Response:', trendsResponse.data);
       
-      setStats(statsResponse.data);
-      setTrends(trendsResponse.data);
+      // Ensure we always have data objects to prevent blank cards
+      setStats(statsResponse.data || {
+        total_income: 0,
+        total_expenses: 0,
+        savings: 0,
+        anomaly_count: 0,
+        recent_transactions: [],
+        category_breakdown: []
+      });
+      setTrends(trendsResponse.data || {
+        this_month_daily: [],
+        last_month_daily: [],
+        this_month_categories: [],
+        last_month_categories: [],
+        all_time_monthly_expenses: [],
+        all_time_monthly_savings: []
+      });
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
+      // Set default values on error to prevent blank cards
+      setStats({
+        total_income: 0,
+        total_expenses: 0,
+        savings: 0,
+        anomaly_count: 0,
+        recent_transactions: [],
+        category_breakdown: []
+      });
+      setTrends({
+        this_month_daily: [],
+        last_month_daily: [],
+        this_month_categories: [],
+        last_month_categories: [],
+        all_time_monthly_expenses: [],
+        all_time_monthly_savings: []
+      });
     } finally {
       setLoading(false);
     }
@@ -240,17 +272,17 @@ const Dashboard = () => {
 
           {/* Charts Section - Conditional based on filter */}
           {filter === 'all_time' ? (
-            <div className="grid-charts section-spacing">
-              {/* All Time Monthly Expenses Line Chart */}
+            <div className="section-spacing">
+              {/* All Time Monthly Expenses Bar Chart - Full Width */}
               <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
                 <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   All Time - Monthly Expenses
                 </h2>
                 {trends?.all_time_monthly_expenses && trends.all_time_monthly_expenses.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={trends.all_time_monthly_expenses}>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={trends.all_time_monthly_expenses}>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
-                      <XAxis dataKey="month" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
+                      <XAxis dataKey="month" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
                       <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
                       <Tooltip 
                         contentStyle={{ 
@@ -260,44 +292,13 @@ const Dashboard = () => {
                         }}
                       />
                       <Legend />
-                      <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} name="Expenses" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-[300px]">
-                    <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-center`}>
-                      No expense data available. Start adding transactions to see your spending trends.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* All Time Monthly Savings Bar Chart */}
-              <div className={`chart-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-                <h2 className={`card-title mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  All Time - Monthly Savings
-                </h2>
-                {trends?.all_time_monthly_savings && trends.all_time_monthly_savings.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={trends.all_time_monthly_savings}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
-                      <XAxis dataKey="month" stroke={isDark ? '#9ca3af' : '#6b7280'} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis stroke={isDark ? '#9ca3af' : '#6b7280'} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                          border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
-                          borderRadius: '8px'
-                        }}
-                      />
-                      <Legend />
-                      <Bar dataKey="savings" fill="#10b981" radius={[8, 8, 0, 0]} name="Savings" />
+                      <Bar dataKey="total" fill="#3b82f6" radius={[8, 8, 0, 0]} name="Expenses" />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-[300px]">
+                  <div className="flex items-center justify-center h-[400px]">
                     <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-center`}>
-                      No savings data available. Start adding transactions to track your savings.
+                      No expense data available. Start adding transactions to see your spending trends.
                     </p>
                   </div>
                 )}
