@@ -1309,63 +1309,73 @@ def get_insights(
             })
         
         # Recommendation 5: Budget allocation check
-        budget_result = (
-            db.table("budget_plans")
-            .select("*")
-            .eq("user_id", current_user["id"])
-            .eq("month", datetime.utcnow().strftime("%Y-%m"))
-            .execute()
-        )
-        
-        if budget_result.data:
-            # Calculate current month expenses by category
-            current_month_expenses = {}
-            for t in transactions:
-                if t["transaction_type"] == "expense":
+        try:
+            budget_result = (
+                db.table("budget_plans")
+                .select("*")
+                .eq("user_id", current_user["id"])
+                .eq("month", datetime.utcnow().strftime("%Y-%m"))
+                .execute()
+            )
+            
+            if budget_result.data:
+                # Calculate current month expenses by category
+                current_month_expenses = {}
+                for t in transactions:
+                    if t["transaction_type"] == "expense":
+                        try:
+                            date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                            if date.month == current_month and date.year == current_year:
+                                category = t["category"]
+                                current_month_expenses[category] = current_month_expenses.get(category, 0) + t["amount"]
+                        except:
+                            continue
+                
+                # Check for budget overruns
+                budget_allocations = {}
+                for budget in budget_result.data:
+                    budget_allocations[budget["category"]] = budget["allocated_amount"]
+                
+                overrun_count = 0
+                anomaly_records = []
+                for category, spent in current_month_expenses.items():
+                    if category in budget_allocations:
+                        allocated = budget_allocations[category]
+                        if spent > allocated:
+                            overrun_amount = spent - allocated
+                            overrun_percent = (overrun_amount / allocated * 100) if allocated > 0 else 0
+                            
+                            # Add to recommendations
+                            recommendations.append({
+                                "category": f"{category} Budget Alert",
+                                "message": f"You've exceeded your {category} budget by ₹{overrun_amount:.2f} ({overrun_percent:.1f}%). Allocated: ₹{allocated:.2f}, Spent: ₹{spent:.2f}",
+                                "type": "warning"
+                            })
+                            
+                            # Prepare anomaly record
+                            anomaly_records.append({
+                                "user_id": current_user["id"],
+                                "category": category,
+                                "description": f"Budget exceeded by ₹{overrun_amount:.2f} ({overrun_percent:.1f}%)",
+                                "detected_at": datetime.utcnow().isoformat()
+                            })
+                            overrun_count += 1
+                
+                # Insert all anomaly records at once
+                if anomaly_records:
                     try:
-                        date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
-                        if date.month == current_month and date.year == current_year:
-                            category = t["category"]
-                            current_month_expenses[category] = current_month_expenses.get(category, 0) + t["amount"]
-                    except:
-                        continue
-            
-            # Check for budget overruns and create anomalies
-            budget_allocations = {}
-            for budget in budget_result.data:
-                budget_allocations[budget["category"]] = budget["allocated_amount"]
-            
-            overrun_count = 0
-            for category, spent in current_month_expenses.items():
-                if category in budget_allocations:
-                    allocated = budget_allocations[category]
-                    if spent > allocated:
-                        overrun_amount = spent - allocated
-                        overrun_percent = (overrun_amount / allocated * 100) if allocated > 0 else 0
-                        
-                        # Add to recommendations
-                        recommendations.append({
-                            "category": f"{category} Budget Alert",
-                            "message": f"You've exceeded your {category} budget by ₹{overrun_amount:.2f} ({overrun_percent:.1f}%). Allocated: ₹{allocated:.2f}, Spent: ₹{spent:.2f}",
-                            "type": "warning"
-                        })
-                        
-                        # Create anomaly record
-                        anomaly_payload = {
-                            "user_id": current_user["id"],
-                            "category": category,
-                            "description": f"Budget exceeded by ₹{overrun_amount:.2f} ({overrun_percent:.1f}%)",
-                            "detected_at": datetime.utcnow().isoformat()
-                        }
-                        db.table("anomalies").insert(anomaly_payload).execute()
-                        overrun_count += 1
-            
-            if overrun_count > 0:
-                recommendations.append({
-                    "category": "Budget Management",
-                    "message": f"You have {overrun_count} categories exceeding their allocated budgets. Review your spending to stay on track.",
-                    "type": "warning"
-                })
+                        db.table("anomalies").insert(anomaly_records).execute()
+                    except Exception as e:
+                        print(f"Failed to insert anomalies: {str(e)}")
+                
+                if overrun_count > 0:
+                    recommendations.append({
+                        "category": "Budget Management",
+                        "message": f"You have {overrun_count} categories exceeding their allocated budgets. Review your spending to stay on track.",
+                        "type": "warning"
+                    })
+        except Exception as e:
+            print(f"Error in budget allocation check: {str(e)}")
         
         # Ensure minimum 5 recommendations
         while len(recommendations) < 5:
