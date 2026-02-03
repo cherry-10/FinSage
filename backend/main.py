@@ -777,16 +777,40 @@ def get_dashboard_stats(
             last_month_expenses = 0
         
         # Get anomaly count
+        # Get current month anomalies (budget overruns)
         try:
-            anomalies_result = (
-                db.table("anomalies")
+            # Check for budget overruns in current month
+            budget_result = (
+                db.table("budget_plans")
                 .select("*")
                 .eq("user_id", current_user["id"])
+                .eq("month", datetime.utcnow().strftime("%Y-%m"))
                 .execute()
             )
-            anomaly_count = len(anomalies_result.data) if anomalies_result.data else 0
+            
+            anomaly_count = 0
+            if budget_result.data:
+                # Calculate current month expenses by category
+                current_month_expenses_by_cat = {}
+                for t in transactions:
+                    if t["transaction_type"] == "expense":
+                        try:
+                            date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                            if date.month == current_month and date.year == current_year:
+                                category = t["category"]
+                                current_month_expenses_by_cat[category] = current_month_expenses_by_cat.get(category, 0) + t["amount"]
+                        except:
+                            continue
+                
+                # Count budget overruns
+                for budget in budget_result.data:
+                    category = budget["category"]
+                    allocated = budget["allocated_amount"]
+                    spent = current_month_expenses_by_cat.get(category, 0)
+                    if spent > allocated:
+                        anomaly_count += 1
         except Exception as e:
-            print(f"Error fetching anomalies: {str(e)}")
+            print(f"Error calculating anomaly count: {str(e)}")
             anomaly_count = 0
         
         # Get recent transactions for selected month
