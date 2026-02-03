@@ -459,6 +459,9 @@ def generate_budget(
         else:
             expense_limit = income * 0.8  # Default to 80% of income
         
+        # Calculate target savings (20% of income or income - expense_limit)
+        target_savings = income - expense_limit
+        
         # Get user transactions for AI analysis
         transactions_result = (
             db.table("transactions")
@@ -468,12 +471,25 @@ def generate_budget(
             .execute()
         )
         
-        # Generate budget using AI
-        budget_plan = generate_budget_plan(
+        # Prepare past expenses from transactions
+        past_expenses = {}
+        if transactions_result.data:
+            for t in transactions_result.data:
+                if t.get("transaction_type") == "expense":
+                    category = t.get("category", "Other")
+                    amount = t.get("amount", 0)
+                    past_expenses[category] = past_expenses.get(category, 0) + amount
+        
+        # Generate budget using AI with correct parameters
+        budget_categories = generate_budget_plan(
             income=income,
-            expense_limit=expense_limit,
-            transactions=transactions_result.data
+            target_savings=target_savings,
+            past_expenses=past_expenses,
+            loan_commitments=0  # Can be extended later
         )
+        
+        # Convert list of dicts to dict for storage
+        budget_plan = {cat["category"]: cat["allocated_amount"] for cat in budget_categories}
         
         # Store budget plan
         current_month = datetime.utcnow().strftime("%Y-%m")
