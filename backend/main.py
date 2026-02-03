@@ -1308,6 +1308,98 @@ def get_insights(
                 "type": "info"
             })
         
+        # Recommendation 5: Budget allocation check
+        budget_result = (
+            db.table("budget_plans")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .eq("month", datetime.utcnow().strftime("%Y-%m"))
+            .execute()
+        )
+        
+        if budget_result.data:
+            # Calculate current month expenses by category
+            current_month_expenses = {}
+            for t in transactions:
+                if t["transaction_type"] == "expense":
+                    try:
+                        date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                        if date.month == current_month and date.year == current_year:
+                            category = t["category"]
+                            current_month_expenses[category] = current_month_expenses.get(category, 0) + t["amount"]
+                    except:
+                        continue
+            
+            # Check for budget overruns and create anomalies
+            budget_allocations = {}
+            for budget in budget_result.data:
+                budget_allocations[budget["category"]] = budget["allocated_amount"]
+            
+            overrun_count = 0
+            for category, spent in current_month_expenses.items():
+                if category in budget_allocations:
+                    allocated = budget_allocations[category]
+                    if spent > allocated:
+                        overrun_amount = spent - allocated
+                        overrun_percent = (overrun_amount / allocated * 100) if allocated > 0 else 0
+                        
+                        # Add to recommendations
+                        recommendations.append({
+                            "category": f"{category} Budget Alert",
+                            "message": f"You've exceeded your {category} budget by ₹{overrun_amount:.2f} ({overrun_percent:.1f}%). Allocated: ₹{allocated:.2f}, Spent: ₹{spent:.2f}",
+                            "type": "warning"
+                        })
+                        
+                        # Create anomaly record
+                        anomaly_payload = {
+                            "user_id": current_user["id"],
+                            "category": category,
+                            "description": f"Budget exceeded by ₹{overrun_amount:.2f} ({overrun_percent:.1f}%)",
+                            "detected_at": datetime.utcnow().isoformat()
+                        }
+                        db.table("anomalies").insert(anomaly_payload).execute()
+                        overrun_count += 1
+            
+            if overrun_count > 0:
+                recommendations.append({
+                    "category": "Budget Management",
+                    "message": f"You have {overrun_count} categories exceeding their allocated budgets. Review your spending to stay on track.",
+                    "type": "warning"
+                })
+        
+        # Ensure minimum 5 recommendations
+        while len(recommendations) < 5:
+            if len(recommendations) == 4:
+                recommendations.append({
+                    "category": "Financial Health",
+                    "message": "Track your expenses regularly to identify spending patterns and opportunities for savings.",
+                    "type": "info"
+                })
+            elif len(recommendations) == 3:
+                recommendations.append({
+                    "category": "Smart Budgeting",
+                    "message": "Set monthly budgets for each spending category to maintain better control over your finances.",
+                    "type": "info"
+                })
+            elif len(recommendations) == 2:
+                recommendations.append({
+                    "category": "Emergency Fund",
+                    "message": "Build an emergency fund covering 3-6 months of expenses for financial security.",
+                    "type": "success"
+                })
+            elif len(recommendations) == 1:
+                recommendations.append({
+                    "category": "Investment Planning",
+                    "message": "Consider investing your savings in diversified portfolios for long-term wealth creation.",
+                    "type": "success"
+                })
+            else:
+                recommendations.append({
+                    "category": "Getting Started",
+                    "message": "Start by adding your income and setting expense limits to get personalized insights.",
+                    "type": "info"
+                })
+        
         # Generate summary
         if total_expenses == 0:
             summary = "Start tracking your expenses to get personalized insights and recommendations. Add your first transaction to begin your financial journey!"
