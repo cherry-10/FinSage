@@ -12,11 +12,18 @@ import secrets
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import pandas as pd
-import numpy as np
-from prophet import Prophet
 import warnings
 warnings.filterwarnings('ignore')
+
+# Optional imports for forecasting - graceful fallback if not available
+try:
+    import pandas as pd
+    import numpy as np
+    from prophet import Prophet
+    PROPHET_AVAILABLE = True
+except ImportError:
+    PROPHET_AVAILABLE = False
+    print("Prophet/pandas not available - using simple forecasting fallback")
 
 app = FastAPI(title="FinSage API", version="1.0.0")
 
@@ -725,6 +732,79 @@ def get_budget(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch budget: {str(e)}"
+        )
+
+# ============================================
+# BUDGET: SUMMARY (allocated vs actual)
+# ============================================
+@app.get("/api/budget/summary")
+def get_budget_summary(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        current_month = datetime.utcnow().strftime("%Y-%m")
+        now = datetime.utcnow()
+
+        # Get budget allocations for current month
+        budget_result = (
+            db.table("budget_plans")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .eq("month", current_month)
+            .execute()
+        )
+
+        # Get all transactions for current month
+        transactions_result = (
+            db.table("transactions")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+
+        # Filter current month expense transactions
+        current_month_expenses = {}
+        for t in (transactions_result.data or []):
+            if t.get("transaction_type") != "expense":
+                continue
+            try:
+                date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                if date.month == now.month and date.year == now.year:
+                    cat = t.get("category", "Other")
+                    current_month_expenses[cat] = current_month_expenses.get(cat, 0) + t["amount"]
+            except Exception:
+                continue
+
+        budget_data = budget_result.data or []
+        total_allocated = sum(b["allocated_amount"] for b in budget_data)
+        total_spent = sum(current_month_expenses.values())
+
+        categories = []
+        for b in budget_data:
+            cat = b["category"]
+            allocated = b["allocated_amount"]
+            spent = current_month_expenses.get(cat, 0)
+            categories.append({
+                "category": cat,
+                "allocated_amount": allocated,
+                "spent": spent,
+                "remaining": allocated - spent,
+                "percent_used": round((spent / allocated * 100), 1) if allocated > 0 else 0
+            })
+
+        return {
+            "month": current_month,
+            "total_allocated": total_allocated,
+            "total_spent": total_spent,
+            "total_remaining": total_allocated - total_spent,
+            "categories": categories
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch budget summary: {str(e)}"
         )
 
 # ============================================
@@ -1450,51 +1530,55 @@ def predict_expense(
                 "method": "daily_average"
             }
         
-        # METHOD 2: 2 or more months - Use Prophet time-series forecasting
+        # METHOD 2: 2 or more months
         else:
-            # Prepare data for Prophet
-            df = pd.DataFrame([
-                {"ds": datetime.strptime(month, "%Y-%m"), "y": amount}
-                for month, amount in sorted_months
-            ])
-            
-            # Initialize and fit Prophet model
-            model = Prophet(
-                yearly_seasonality=False,
-                weekly_seasonality=False,
-                daily_seasonality=False,
-                interval_width=0.8  # 80% confidence interval
-            )
-            model.fit(df)
-            
-            # Create future dataframe for next month
-            future = model.make_future_dataframe(periods=1, freq='MS')  # MS = Month Start
-            
-            # Make prediction
-            forecast = model.predict(future)
-            
-            # Get prediction for next month (last row)
-            prediction_row = forecast.iloc[-1]
-            predicted_amount = max(0, prediction_row['yhat'])  # Ensure non-negative
-            
-            # Confidence range from Prophet
-            confidence_range = {
-                "lower": max(0, prediction_row['yhat_lower']),
-                "upper": max(0, prediction_row['yhat_upper'])
-            }
-            
-            # Calculate insight
             last_month_amount = sorted_months[-1][1]
-            change_percent = ((predicted_amount - last_month_amount) / last_month_amount * 100) if last_month_amount > 0 else 0
-            
-            if change_percent > 10:
-                insight = f"AI predicts a {abs(change_percent):.1f}% increase in expenses next month. Consider reviewing your budget allocations."
-            elif change_percent < -10:
-                insight = f"AI predicts a {abs(change_percent):.1f}% decrease in expenses next month. Great job managing your spending!"
+
+            if PROPHET_AVAILABLE:
+                # Use Prophet time-series forecasting
+                df = pd.DataFrame([
+                    {"ds": datetime.strptime(month, "%Y-%m"), "y": amount}
+                    for month, amount in sorted_months
+                ])
+                model = Prophet(
+                    yearly_seasonality=False,
+                    weekly_seasonality=False,
+                    daily_seasonality=False,
+                    interval_width=0.8
+                )
+                model.fit(df)
+                future = model.make_future_dataframe(periods=1, freq='MS')
+                forecast = model.predict(future)
+                prediction_row = forecast.iloc[-1]
+                predicted_amount = max(0, float(prediction_row['yhat']))
+                confidence_range = {
+                    "lower": max(0, float(prediction_row['yhat_lower'])),
+                    "upper": max(0, float(prediction_row['yhat_upper']))
+                }
+                method = "prophet"
             else:
-                insight = f"AI predicts stable expenses next month, similar to your recent spending pattern."
-            
-            # Store prediction in database (optional)
+                # Fallback: weighted average (recent months weighted more)
+                amounts = [amt for _, amt in sorted_months]
+                n = len(amounts)
+                weights = list(range(1, n + 1))  # 1,2,3... most recent = highest weight
+                predicted_amount = sum(w * a for w, a in zip(weights, amounts)) / sum(weights)
+                predicted_amount = max(0, predicted_amount)
+                confidence_range = {
+                    "lower": predicted_amount * 0.85,
+                    "upper": predicted_amount * 1.15
+                }
+                method = "weighted_average"
+
+            change_percent = ((predicted_amount - last_month_amount) / last_month_amount * 100) if last_month_amount > 0 else 0
+
+            if change_percent > 10:
+                insight = f"Predicted a {abs(change_percent):.1f}% increase in expenses next month. Consider reviewing your budget allocations."
+            elif change_percent < -10:
+                insight = f"Predicted a {abs(change_percent):.1f}% decrease in expenses next month. Great job managing your spending!"
+            else:
+                insight = f"Expenses predicted to remain stable next month, similar to your recent spending pattern."
+
+            # Store prediction (optional, ignore errors)
             try:
                 db.table("predictions").insert({
                     "user_id": current_user["id"],
@@ -1502,10 +1586,9 @@ def predict_expense(
                     "predicted_amount": round(predicted_amount, 2),
                     "created_at": datetime.utcnow().isoformat()
                 }).execute()
-            except Exception as e:
-                print(f"Failed to store prediction: {str(e)}")
-                # Continue even if storage fails
-            
+            except Exception:
+                pass
+
             return {
                 "predicted_month": predicted_month,
                 "predicted_amount": round(predicted_amount, 2),
@@ -1515,7 +1598,7 @@ def predict_expense(
                 },
                 "historical_data": historical_data,
                 "insight": insight,
-                "method": "prophet"
+                "method": method
             }
     
     except Exception as e:
