@@ -1595,12 +1595,13 @@ def predict_expense(
                     model = ExponentialSmoothing(series, trend=None, seasonal=None)
                 fit = model.fit(optimized=True)
                 predicted_amount = max(0, float(fit.forecast(1)[0]))
-                # Compute residual std for confidence interval
-                residuals = series - fit.fittedvalues
-                std = float(np.std(residuals)) if len(residuals) > 1 else predicted_amount * 0.1
+                # Confidence range based on actual historical spread
+                hist_min = float(np.min(series))
+                hist_max = float(np.max(series))
+                hist_std = float(np.std(series)) if len(series) > 1 else predicted_amount * 0.15
                 confidence_range = {
-                    "lower": max(0, predicted_amount - 1.28 * std),
-                    "upper": predicted_amount + 1.28 * std
+                    "lower": max(0, predicted_amount - hist_std),
+                    "upper": predicted_amount + hist_std
                 }
                 method = "ai_forecast"
             else:
