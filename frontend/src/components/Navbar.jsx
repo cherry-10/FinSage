@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, Receipt, PiggyBank, Lightbulb, Sun, Moon, User, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Receipt, PiggyBank, Lightbulb, TrendingUp, Sun, Moon, User, Menu, X } from 'lucide-react';
 
 const Navbar = () => {
   const { user } = useAuth();
@@ -15,6 +15,7 @@ const Navbar = () => {
     { path: '/transactions', icon: Receipt, label: 'Transactions' },
     { path: '/budget', icon: PiggyBank, label: 'Budget' },
     { path: '/insights', icon: Lightbulb, label: 'AI Insights' },
+    { path: '/predict', icon: TrendingUp, label: 'Predict' },
   ];
 
   return (

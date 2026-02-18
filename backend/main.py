@@ -12,6 +12,11 @@ import secrets
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import pandas as pd
+import numpy as np
+from prophet import Prophet
+import warnings
+warnings.filterwarnings('ignore')
 
 app = FastAPI(title="FinSage API", version="1.0.0")
 
@@ -1331,6 +1336,193 @@ def update_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update profile: {str(e)}"
+        )
+
+# ============================================
+# PREDICT: EXPENSE FORECASTING
+# ============================================
+@app.get("/api/predict-expense")
+def predict_expense(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    try:
+        # Get all user transactions
+        transactions_result = (
+            db.table("transactions")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .eq("transaction_type", "expense")
+            .execute()
+        )
+        
+        transactions = transactions_result.data if transactions_result.data else []
+        
+        if not transactions:
+            return {
+                "predicted_month": (datetime.utcnow() + timedelta(days=30)).strftime("%B %Y"),
+                "predicted_amount": 0,
+                "confidence_range": {"lower": 0, "upper": 0},
+                "historical_data": [],
+                "insight": "No transaction history available. Start adding expenses to get predictions.",
+                "method": "none"
+            }
+        
+        # Aggregate expenses by month
+        monthly_expenses = {}
+        for t in transactions:
+            try:
+                date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                month_key = date.strftime("%Y-%m")
+                monthly_expenses[month_key] = monthly_expenses.get(month_key, 0) + t["amount"]
+            except Exception as e:
+                print(f"Error parsing transaction date: {str(e)}")
+                continue
+        
+        if not monthly_expenses:
+            return {
+                "predicted_month": (datetime.utcnow() + timedelta(days=30)).strftime("%B %Y"),
+                "predicted_amount": 0,
+                "confidence_range": {"lower": 0, "upper": 0},
+                "historical_data": [],
+                "insight": "Unable to process transaction data.",
+                "method": "none"
+            }
+        
+        # Sort months chronologically
+        sorted_months = sorted(monthly_expenses.items())
+        num_months = len(sorted_months)
+        
+        # Prepare historical data for response
+        historical_data = [
+            {"month": datetime.strptime(month, "%Y-%m").strftime("%b %Y"), "amount": amount}
+            for month, amount in sorted_months
+        ]
+        
+        # Get next month
+        last_month_date = datetime.strptime(sorted_months[-1][0], "%Y-%m")
+        next_month_date = last_month_date + timedelta(days=32)
+        next_month_date = next_month_date.replace(day=1)
+        predicted_month = next_month_date.strftime("%B %Y")
+        
+        # METHOD 1: Less than 2 months - Use daily average projection
+        if num_months < 2:
+            # Calculate total days with transactions
+            total_expenses = sum(monthly_expenses.values())
+            
+            # Get date range
+            first_date = datetime.strptime(sorted_months[0][0], "%Y-%m")
+            last_date = datetime.strptime(sorted_months[-1][0], "%Y-%m")
+            days_span = (last_date - first_date).days + 30  # Add 30 for the month itself
+            
+            if days_span > 0:
+                daily_avg = total_expenses / days_span
+                predicted_amount = daily_avg * 30  # Project for 30 days
+            else:
+                predicted_amount = total_expenses
+            
+            # Simple confidence range (±20%)
+            confidence_range = {
+                "lower": predicted_amount * 0.8,
+                "upper": predicted_amount * 1.2
+            }
+            
+            # Calculate insight
+            last_month_amount = sorted_months[-1][1]
+            change_percent = ((predicted_amount - last_month_amount) / last_month_amount * 100) if last_month_amount > 0 else 0
+            
+            if change_percent > 10:
+                insight = f"Predicted to increase by {abs(change_percent):.1f}% compared to last month. Based on daily average spending pattern."
+            elif change_percent < -10:
+                insight = f"Predicted to decrease by {abs(change_percent):.1f}% compared to last month. Based on daily average spending pattern."
+            else:
+                insight = f"Predicted to remain stable compared to last month. Based on daily average spending pattern."
+            
+            return {
+                "predicted_month": predicted_month,
+                "predicted_amount": round(predicted_amount, 2),
+                "confidence_range": {
+                    "lower": round(confidence_range["lower"], 2),
+                    "upper": round(confidence_range["upper"], 2)
+                },
+                "historical_data": historical_data,
+                "insight": insight,
+                "method": "daily_average"
+            }
+        
+        # METHOD 2: 2 or more months - Use Prophet time-series forecasting
+        else:
+            # Prepare data for Prophet
+            df = pd.DataFrame([
+                {"ds": datetime.strptime(month, "%Y-%m"), "y": amount}
+                for month, amount in sorted_months
+            ])
+            
+            # Initialize and fit Prophet model
+            model = Prophet(
+                yearly_seasonality=False,
+                weekly_seasonality=False,
+                daily_seasonality=False,
+                interval_width=0.8  # 80% confidence interval
+            )
+            model.fit(df)
+            
+            # Create future dataframe for next month
+            future = model.make_future_dataframe(periods=1, freq='MS')  # MS = Month Start
+            
+            # Make prediction
+            forecast = model.predict(future)
+            
+            # Get prediction for next month (last row)
+            prediction_row = forecast.iloc[-1]
+            predicted_amount = max(0, prediction_row['yhat'])  # Ensure non-negative
+            
+            # Confidence range from Prophet
+            confidence_range = {
+                "lower": max(0, prediction_row['yhat_lower']),
+                "upper": max(0, prediction_row['yhat_upper'])
+            }
+            
+            # Calculate insight
+            last_month_amount = sorted_months[-1][1]
+            change_percent = ((predicted_amount - last_month_amount) / last_month_amount * 100) if last_month_amount > 0 else 0
+            
+            if change_percent > 10:
+                insight = f"AI predicts a {abs(change_percent):.1f}% increase in expenses next month. Consider reviewing your budget allocations."
+            elif change_percent < -10:
+                insight = f"AI predicts a {abs(change_percent):.1f}% decrease in expenses next month. Great job managing your spending!"
+            else:
+                insight = f"AI predicts stable expenses next month, similar to your recent spending pattern."
+            
+            # Store prediction in database (optional)
+            try:
+                db.table("predictions").insert({
+                    "user_id": current_user["id"],
+                    "month": next_month_date.strftime("%Y-%m"),
+                    "predicted_amount": round(predicted_amount, 2),
+                    "created_at": datetime.utcnow().isoformat()
+                }).execute()
+            except Exception as e:
+                print(f"Failed to store prediction: {str(e)}")
+                # Continue even if storage fails
+            
+            return {
+                "predicted_month": predicted_month,
+                "predicted_amount": round(predicted_amount, 2),
+                "confidence_range": {
+                    "lower": round(confidence_range["lower"], 2),
+                    "upper": round(confidence_range["upper"], 2)
+                },
+                "historical_data": historical_data,
+                "insight": insight,
+                "method": "prophet"
+            }
+    
+    except Exception as e:
+        print(f"Prediction error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate expense prediction: {str(e)}"
         )
 
 # ============================================
