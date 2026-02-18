@@ -17,13 +17,14 @@ warnings.filterwarnings('ignore')
 
 # Optional imports for forecasting - graceful fallback if not available
 try:
-    import pandas as pd
     import numpy as np
-    from statsmodels.tsa.holtwinters import ExponentialSmoothing
-    FORECASTING_AVAILABLE = True
+    import pandas as pd
+    from sklearn.linear_model import LinearRegression
+    from sklearn.preprocessing import PolynomialFeatures
+    ML_AVAILABLE = True
 except ImportError:
-    FORECASTING_AVAILABLE = False
-    print("statsmodels not available - using simple forecasting fallback")
+    ML_AVAILABLE = False
+    print("scikit-learn not available - using simple forecasting fallback")
 
 app = FastAPI(title="FinSage API", version="1.0.0")
 
@@ -1534,123 +1535,90 @@ def predict_expense(
         next_month_date = next_month_date.replace(day=1)
         predicted_month = next_month_date.strftime("%B %Y")
         
-        # METHOD 1: Less than 1 month - Use daily average projection
-        if num_months < 1:
-            # Calculate total days with transactions
-            total_expenses = sum(monthly_expenses.values())
-            
-            # Get date range
-            first_date = datetime.strptime(sorted_months[0][0], "%Y-%m")
-            last_date = datetime.strptime(sorted_months[-1][0], "%Y-%m")
-            days_span = (last_date - first_date).days + 30  # Add 30 for the month itself
-            
-            if days_span > 0:
-                daily_avg = total_expenses / days_span
-                predicted_amount = daily_avg * 30  # Project for 30 days
-            else:
-                predicted_amount = total_expenses
-            
-            # Simple confidence range (±20%)
+        last_month_amount = sorted_months[-1][1]
+        num_transactions = len(transactions)
+
+        if num_transactions >= 10 and ML_AVAILABLE:
+            # ── ML PATH: scikit-learn Polynomial Regression on monthly totals ──
+            amounts = [amt for _, amt in sorted_months]
+            X = np.array(range(len(amounts))).reshape(-1, 1)
+            y = np.array(amounts, dtype=float)
+
+            # Degree-2 polynomial captures trend curves (not just straight lines)
+            poly = PolynomialFeatures(degree=min(2, len(amounts) - 1))
+            X_poly = poly.fit_transform(X)
+
+            model = LinearRegression()
+            model.fit(X_poly, y)
+
+            # Predict next month index
+            next_idx = np.array([[len(amounts)]])
+            next_idx_poly = poly.transform(next_idx)
+            predicted_amount = max(0, float(model.predict(next_idx_poly)[0]))
+
+            # Confidence range: residual std of the fitted values
+            fitted = model.predict(X_poly)
+            residuals = y - fitted
+            residual_std = float(np.std(residuals)) if len(residuals) > 1 else predicted_amount * 0.1
+            # Also factor in historical spread so range is never too tight
+            hist_std = float(np.std(y))
+            spread = max(residual_std, hist_std * 0.5)
             confidence_range = {
-                "lower": predicted_amount * 0.8,
-                "upper": predicted_amount * 1.2
+                "lower": max(0, predicted_amount - 1.28 * spread),
+                "upper": predicted_amount + 1.28 * spread
             }
-            
-            # Calculate insight
-            last_month_amount = sorted_months[-1][1]
-            change_percent = ((predicted_amount - last_month_amount) / last_month_amount * 100) if last_month_amount > 0 else 0
-            
-            if change_percent > 10:
-                insight = f"Predicted to increase by {abs(change_percent):.1f}% compared to last month. Based on daily average spending pattern."
-            elif change_percent < -10:
-                insight = f"Predicted to decrease by {abs(change_percent):.1f}% compared to last month. Based on daily average spending pattern."
-            else:
-                insight = f"Predicted to remain stable compared to last month. Based on daily average spending pattern."
-            
-            return {
-                "predicted_month": predicted_month,
-                "predicted_amount": round(predicted_amount, 2),
-                "confidence_range": {
-                    "lower": round(confidence_range["lower"], 2),
-                    "upper": round(confidence_range["upper"], 2)
-                },
-                "historical_data": historical_data,
-                "insight": insight,
-                "method": "daily_average"
-            }
-        
-        # METHOD 2: 1 or more months - ML forecast
+            method = "ml_regression"
+
         else:
-            last_month_amount = sorted_months[-1][1]
-
-            if FORECASTING_AVAILABLE and num_months >= 2:
-                # Use Holt-Winters Exponential Smoothing (pure Python, no Stan)
-                amounts = [amt for _, amt in sorted_months]
-                series = np.array(amounts, dtype=float)
-                if len(series) >= 3:
-                    model = ExponentialSmoothing(series, trend='add', seasonal=None)
-                else:
-                    model = ExponentialSmoothing(series, trend=None, seasonal=None)
-                fit = model.fit(optimized=True)
-                predicted_amount = max(0, float(fit.forecast(1)[0]))
-                hist_std = float(np.std(series)) if len(series) > 1 else predicted_amount * 0.15
-                confidence_range = {
-                    "lower": max(0, predicted_amount - hist_std),
-                    "upper": predicted_amount + hist_std
-                }
-                method = "ai_forecast"
-            elif num_months == 1:
-                # Only 1 month — project same amount with ±15% range
-                predicted_amount = last_month_amount
-                confidence_range = {
-                    "lower": predicted_amount * 0.85,
-                    "upper": predicted_amount * 1.15
-                }
-                method = "weighted_average"
+            # ── FALLBACK: weighted average for < 10 transactions ──
+            amounts = [amt for _, amt in sorted_months]
+            n = len(amounts)
+            weights = list(range(1, n + 1))
+            predicted_amount = sum(w * a for w, a in zip(weights, amounts)) / sum(weights)
+            predicted_amount = max(0, predicted_amount)
+            # Confidence range from actual historical spread
+            if ML_AVAILABLE and n > 1:
+                hist_std = float(np.std(np.array(amounts, dtype=float)))
             else:
-                # Fallback: weighted average (recent months weighted more)
-                amounts = [amt for _, amt in sorted_months]
-                n = len(amounts)
-                weights = list(range(1, n + 1))  # 1,2,3... most recent = highest weight
-                predicted_amount = sum(w * a for w, a in zip(weights, amounts)) / sum(weights)
-                predicted_amount = max(0, predicted_amount)
-                confidence_range = {
-                    "lower": predicted_amount * 0.85,
-                    "upper": predicted_amount * 1.15
-                }
-                method = "weighted_average"
-
-            change_percent = ((predicted_amount - last_month_amount) / last_month_amount * 100) if last_month_amount > 0 else 0
-
-            if change_percent > 10:
-                insight = f"Predicted a {abs(change_percent):.1f}% increase in expenses next month. Consider reviewing your budget allocations."
-            elif change_percent < -10:
-                insight = f"Predicted a {abs(change_percent):.1f}% decrease in expenses next month. Great job managing your spending!"
-            else:
-                insight = f"Expenses predicted to remain stable next month, similar to your recent spending pattern."
-
-            # Store prediction (optional, ignore errors)
-            try:
-                db.table("predictions").insert({
-                    "user_id": current_user["id"],
-                    "month": next_month_date.strftime("%Y-%m"),
-                    "predicted_amount": round(predicted_amount, 2),
-                    "created_at": datetime.utcnow().isoformat()
-                }).execute()
-            except Exception:
-                pass
-
-            return {
-                "predicted_month": predicted_month,
-                "predicted_amount": round(predicted_amount, 2),
-                "confidence_range": {
-                    "lower": round(confidence_range["lower"], 2),
-                    "upper": round(confidence_range["upper"], 2)
-                },
-                "historical_data": historical_data,
-                "insight": insight,
-                "method": method
+                hist_std = predicted_amount * 0.15
+            confidence_range = {
+                "lower": max(0, predicted_amount - hist_std),
+                "upper": predicted_amount + hist_std
             }
+            method = "weighted_average"
+
+        # ── Insight generation (shared for both paths) ──
+        change_percent = ((predicted_amount - last_month_amount) / last_month_amount * 100) if last_month_amount > 0 else 0
+
+        if change_percent > 10:
+            insight = f"Predicted a {abs(change_percent):.1f}% increase in expenses next month. Consider reviewing your budget allocations."
+        elif change_percent < -10:
+            insight = f"Predicted a {abs(change_percent):.1f}% decrease in expenses next month. Great job managing your spending!"
+        else:
+            insight = f"Expenses predicted to remain stable next month, similar to your recent spending pattern."
+
+        # Store prediction (optional, ignore errors)
+        try:
+            db.table("predictions").insert({
+                "user_id": current_user["id"],
+                "month": next_month_date.strftime("%Y-%m"),
+                "predicted_amount": round(predicted_amount, 2),
+                "created_at": datetime.utcnow().isoformat()
+            }).execute()
+        except Exception:
+            pass
+
+        return {
+            "predicted_month": predicted_month,
+            "predicted_amount": round(predicted_amount, 2),
+            "confidence_range": {
+                "lower": round(confidence_range["lower"], 2),
+                "upper": round(confidence_range["upper"], 2)
+            },
+            "historical_data": historical_data,
+            "insight": insight,
+            "method": method
+        }
     
     except Exception as e:
         print(f"Prediction error: {str(e)}")
