@@ -1741,7 +1741,8 @@ def get_insights(
         
         # Find top spending category
         top_category = max(category_breakdown.items(), key=lambda x: x[1]) if category_breakdown else ("None", 0)
-        
+        transaction_count = len([t for t in transactions if t["transaction_type"] == "expense"])
+
         # Build current month expenses by category
         current_month_expenses = {}
         last_month_expenses_by_cat = {}
