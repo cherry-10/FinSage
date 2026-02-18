@@ -31,7 +31,7 @@ const Navbar = () => {
           </Link>
           
           {/* Desktop Navigation - Centered Pill-style */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 hidden lg:flex items-center ${isDark ? 'bg-gray-800/80' : 'bg-gray-50/80'} backdrop-blur-md rounded-full p-1.5 border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-lg">
+          <div className={`absolute left-1/2 transform -translate-x-1/2 hidden lg:flex items-center ${isDark ? 'bg-gray-800/80' : 'bg-gray-50/80'} backdrop-blur-md rounded-full p-1 border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-lg`}>
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -39,7 +39,7 @@ const Navbar = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-2 px-5 py-2.5 rounded-full transition-all duration-300 ${
+                  className={`flex items-center space-x-1.5 px-4 py-2 rounded-full transition-all duration-300 ${
                     isActive
                       ? `${isDark ? 'bg-gradient-to-r from-primary-600 to-success-600' : 'bg-gradient-to-r from-primary-500 to-success-500'} text-white shadow-lg transform scale-105`
                       : isDark ? 'text-gray-300 hover:text-white hover:bg-gray-700/50' : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'

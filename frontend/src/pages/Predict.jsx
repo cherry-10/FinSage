@@ -183,9 +183,11 @@ const Predict = () => {
                     <DollarSign className={isDark ? 'text-gray-400' : 'text-gray-600'} size={20} />
                   </div>
                   <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {prediction.method === 'prophet' ? 'AI Time-Series' : 
-                     prediction.method === 'daily_average' ? 'Daily Average' : 
-                     'Insufficient Data'}
+                    {prediction.method === 'prophet' ? 'AI Time-Series' :
+                     prediction.method === 'weighted_average' ? 'Weighted Average' :
+                     prediction.method === 'daily_average' ? 'Daily Average' :
+                     prediction.method === 'none' ? 'No Data' :
+                     prediction.method || 'Weighted Average'}
                   </p>
                   <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     {prediction.historical_data.length} month{prediction.historical_data.length !== 1 ? 's' : ''} of data
