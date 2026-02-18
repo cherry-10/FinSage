@@ -19,11 +19,11 @@ warnings.filterwarnings('ignore')
 try:
     import pandas as pd
     import numpy as np
-    from prophet import Prophet
-    PROPHET_AVAILABLE = True
+    from statsmodels.tsa.holtwinters import ExponentialSmoothing
+    FORECASTING_AVAILABLE = True
 except ImportError:
-    PROPHET_AVAILABLE = False
-    print("Prophet/pandas not available - using simple forecasting fallback")
+    FORECASTING_AVAILABLE = False
+    print("statsmodels not available - using simple forecasting fallback")
 
 app = FastAPI(title="FinSage API", version="1.0.0")
 
@@ -1583,28 +1583,26 @@ def predict_expense(
         else:
             last_month_amount = sorted_months[-1][1]
 
-            if PROPHET_AVAILABLE:
-                # Use Prophet time-series forecasting
-                df = pd.DataFrame([
-                    {"ds": datetime.strptime(month, "%Y-%m"), "y": amount}
-                    for month, amount in sorted_months
-                ])
-                model = Prophet(
-                    yearly_seasonality=False,
-                    weekly_seasonality=False,
-                    daily_seasonality=False,
-                    interval_width=0.8
-                )
-                model.fit(df)
-                future = model.make_future_dataframe(periods=1, freq='MS')
-                forecast = model.predict(future)
-                prediction_row = forecast.iloc[-1]
-                predicted_amount = max(0, float(prediction_row['yhat']))
+            if FORECASTING_AVAILABLE:
+                # Use Holt-Winters Exponential Smoothing (pure Python, no Stan)
+                amounts = [amt for _, amt in sorted_months]
+                series = np.array(amounts, dtype=float)
+                if len(series) >= 3:
+                    # Use additive trend for 3+ data points
+                    model = ExponentialSmoothing(series, trend='add', seasonal=None)
+                else:
+                    # Simple exponential smoothing for 1-2 data points
+                    model = ExponentialSmoothing(series, trend=None, seasonal=None)
+                fit = model.fit(optimized=True)
+                predicted_amount = max(0, float(fit.forecast(1)[0]))
+                # Compute residual std for confidence interval
+                residuals = series - fit.fittedvalues
+                std = float(np.std(residuals)) if len(residuals) > 1 else predicted_amount * 0.1
                 confidence_range = {
-                    "lower": max(0, float(prediction_row['yhat_lower'])),
-                    "upper": max(0, float(prediction_row['yhat_upper']))
+                    "lower": max(0, predicted_amount - 1.28 * std),
+                    "upper": predicted_amount + 1.28 * std
                 }
-                method = "prophet"
+                method = "ai_forecast"
             else:
                 # Fallback: weighted average (recent months weighted more)
                 amounts = [amt for _, amt in sorted_months]
