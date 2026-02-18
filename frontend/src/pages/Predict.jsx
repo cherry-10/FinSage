@@ -3,7 +3,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useTheme } from '../context/ThemeContext';
 import axios from 'axios';
-import { TrendingUp, AlertTriangle, Calendar, Activity, RefreshCw } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Calendar, Activity, RefreshCw, BarChart2, PlusCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 const Predict = () => {
@@ -131,8 +131,27 @@ const Predict = () => {
 
           {error && (
             <div className="section-spacing">
-              <div className={`p-4 rounded-lg border-2 ${isDark ? 'bg-red-900 bg-opacity-20 border-red-500' : 'bg-red-50 border-red-300'}`}>
-                <p className={`${isDark ? 'text-red-300' : 'text-red-700'} font-medium`}>{error}</p>
+              <div className={`rounded-2xl border-2 border-dashed p-12 flex flex-col items-center justify-center text-center ${
+                isDark ? 'border-gray-600 bg-gray-800/50' : 'border-gray-300 bg-gray-50'
+              }`}>
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-5 ${
+                  isDark ? 'bg-gray-700' : 'bg-primary-50'
+                }`}>
+                  <BarChart2 className={isDark ? 'text-gray-400' : 'text-primary-400'} size={40} />
+                </div>
+                <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  No Prediction Data Yet
+                </h3>
+                <p className={`text-sm max-w-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Start adding your daily expenses in Transactions. Once you have at least 1 month of data, we'll predict your next month's spending automatically.
+                </p>
+                <a
+                  href="/transactions"
+                  className="btn-primary flex items-center space-x-2 px-6 py-2.5"
+                >
+                  <PlusCircle size={18} />
+                  <span>Add Transactions</span>
+                </a>
               </div>
             </div>
           )}

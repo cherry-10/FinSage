@@ -55,10 +55,9 @@ def create_access_token(
 # ============================================
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    supabase: SupabaseClient = Depends(get_supabase_client)
 ) -> dict:
     """
-    Get the current authenticated user from the JWT token
+    Get the current authenticated user from the JWT token (no DB call)
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -67,31 +66,19 @@ async def get_current_user(
     )
     
     try:
-        # Verify the JWT token
         payload = jwt.decode(
             token,
             settings.SECRET_KEY,
             algorithms=["HS256"]
         )
         
-        # Get user email from token
         email = payload.get("sub")
         user_id = payload.get("id")
         
         if not email or not user_id:
             raise credentials_exception
             
-        # Get user from our custom users table
-        result = supabase.table("users").select("*").eq("id", user_id).eq("email", email).execute()
-        
-        if not result.data:
-            raise credentials_exception
-            
-        user = result.data[0]
-        return {
-            "id": user["id"],
-            "email": user["email"],
-        }
+        return {"id": user_id, "email": email}
         
     except JWTError:
         raise credentials_exception

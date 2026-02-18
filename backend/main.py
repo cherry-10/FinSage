@@ -1579,31 +1579,34 @@ def predict_expense(
                 "method": "daily_average"
             }
         
-        # METHOD 2: 2 or more months
+        # METHOD 2: 1 or more months - ML forecast
         else:
             last_month_amount = sorted_months[-1][1]
 
-            if FORECASTING_AVAILABLE:
+            if FORECASTING_AVAILABLE and num_months >= 2:
                 # Use Holt-Winters Exponential Smoothing (pure Python, no Stan)
                 amounts = [amt for _, amt in sorted_months]
                 series = np.array(amounts, dtype=float)
                 if len(series) >= 3:
-                    # Use additive trend for 3+ data points
                     model = ExponentialSmoothing(series, trend='add', seasonal=None)
                 else:
-                    # Simple exponential smoothing for 1-2 data points
                     model = ExponentialSmoothing(series, trend=None, seasonal=None)
                 fit = model.fit(optimized=True)
                 predicted_amount = max(0, float(fit.forecast(1)[0]))
-                # Confidence range based on actual historical spread
-                hist_min = float(np.min(series))
-                hist_max = float(np.max(series))
                 hist_std = float(np.std(series)) if len(series) > 1 else predicted_amount * 0.15
                 confidence_range = {
                     "lower": max(0, predicted_amount - hist_std),
                     "upper": predicted_amount + hist_std
                 }
                 method = "ai_forecast"
+            elif num_months == 1:
+                # Only 1 month — project same amount with ±15% range
+                predicted_amount = last_month_amount
+                confidence_range = {
+                    "lower": predicted_amount * 0.85,
+                    "upper": predicted_amount * 1.15
+                }
+                method = "weighted_average"
             else:
                 # Fallback: weighted average (recent months weighted more)
                 amounts = [amt for _, amt in sorted_months]
