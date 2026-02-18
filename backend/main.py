@@ -7,7 +7,7 @@ from typing import List, Optional
 import schemas
 import auth
 from database import get_db
-from ai_service import generate_budget_plan, detect_anomalies
+from ai_service import generate_budget_plan, detect_anomalies, generate_ai_recommendations
 import secrets
 import smtplib
 from email.mime.text import MIMEText
@@ -1742,64 +1742,24 @@ def get_insights(
         # Find top spending category
         top_category = max(category_breakdown.items(), key=lambda x: x[1]) if category_breakdown else ("None", 0)
         
-        # Generate AI-powered recommendations
-        recommendations = []
-        
-        # Recommendation 1: Spending trend
-        if difference > 0:
-            recommendations.append({
-                "category": "Spending Alert",
-                "message": f"Your spending increased by ₹{abs(difference):.2f} ({abs(percent_change):.1f}%) compared to last month. Consider reviewing your expenses.",
-                "type": "warning"
-            })
-        elif difference < 0:
-            recommendations.append({
-                "category": "Great Progress",
-                "message": f"Excellent! You reduced spending by ₹{abs(difference):.2f} ({abs(percent_change):.1f}%) compared to last month.",
-                "type": "success"
-            })
-        else:
-            recommendations.append({
-                "category": "Stable Spending",
-                "message": "Your spending is consistent with last month. Keep maintaining this pattern.",
-                "type": "info"
-            })
-        
-        # Recommendation 2: Top spending category
-        if top_category[1] > 0:
-            category_percentage = (top_category[1] / total_expenses * 100) if total_expenses > 0 else 0
-            if category_percentage > 40:
-                recommendations.append({
-                    "category": "Category Alert",
-                    "message": f"{top_category[0]} accounts for {category_percentage:.1f}% of your expenses (₹{top_category[1]:.2f}). Consider setting a budget for this category.",
-                    "type": "warning"
-                })
-            else:
-                recommendations.append({
-                    "category": "Top Spending",
-                    "message": f"Your highest spending is in {top_category[0]} (₹{top_category[1]:.2f}). This is {category_percentage:.1f}% of total expenses.",
-                    "type": "info"
-                })
-        
-        # Recommendation 3: Savings opportunity
-        if total_expenses > 0:
-            potential_savings = total_expenses * 0.1  # Suggest 10% reduction
-            recommendations.append({
-                "category": "Savings Opportunity",
-                "message": f"By reducing expenses by just 10%, you could save ₹{potential_savings:.2f} per month, which is ₹{potential_savings * 12:.2f} annually!",
-                "type": "success"
-            })
-        
-        # Recommendation 4: Transaction frequency
-        transaction_count = len([t for t in transactions if t["transaction_type"] == "expense"])
-        if transaction_count > 50:
-            recommendations.append({
-                "category": "Transaction Pattern",
-                "message": f"You have {transaction_count} expense transactions. Consider consolidating purchases to reduce impulse spending.",
-                "type": "info"
-            })
-        
-        # Recommendation 5: Budget allocation check
+        # Build current month expenses by category
+        current_month_expenses = {}
+        last_month_expenses_by_cat = {}
+        for t in transactions:
+            if t["transaction_type"] == "expense":
+                try:
+                    date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
+                    cat = t["category"]
+                    if date.month == current_month and date.year == current_year:
+                        current_month_expenses[cat] = current_month_expenses.get(cat, 0) + t["amount"]
+                    elif date.month == last_month and date.year == last_month_year:
+                        last_month_expenses_by_cat[cat] = last_month_expenses_by_cat.get(cat, 0) + t["amount"]
+                except:
+                    continue
+
+        # Fetch budget allocations for current month
+        budget_allocations = {}
+        anomaly_records = []
         try:
             budget_result = (
                 db.table("budget_plans")
@@ -1808,98 +1768,54 @@ def get_insights(
                 .eq("month", datetime.utcnow().strftime("%Y-%m"))
                 .execute()
             )
-            
             if budget_result.data:
-                # Calculate current month expenses by category
-                current_month_expenses = {}
-                for t in transactions:
-                    if t["transaction_type"] == "expense":
-                        try:
-                            date = datetime.fromisoformat(t["transaction_date"].replace("Z", "+00:00"))
-                            if date.month == current_month and date.year == current_year:
-                                category = t["category"]
-                                current_month_expenses[category] = current_month_expenses.get(category, 0) + t["amount"]
-                        except:
-                            continue
-                
-                # Check for budget overruns
-                budget_allocations = {}
-                for budget in budget_result.data:
-                    budget_allocations[budget["category"]] = budget["allocated_amount"]
-                
-                overrun_count = 0
-                anomaly_records = []
+                for b in budget_result.data:
+                    budget_allocations[b["category"]] = b["allocated_amount"]
+
+                # Build anomaly records for overruns
                 for category, spent in current_month_expenses.items():
-                    if category in budget_allocations:
-                        allocated = budget_allocations[category]
-                        if spent > allocated:
-                            overrun_amount = spent - allocated
-                            overrun_percent = (overrun_amount / allocated * 100) if allocated > 0 else 0
-                            
-                            # Add to recommendations
-                            recommendations.append({
-                                "category": f"{category} Budget Alert",
-                                "message": f"You've exceeded your {category} budget by ₹{overrun_amount:.2f} ({overrun_percent:.1f}%). Allocated: ₹{allocated:.2f}, Spent: ₹{spent:.2f}",
-                                "type": "warning"
-                            })
-                            
-                            # Prepare anomaly record
-                            anomaly_records.append({
-                                "user_id": current_user["id"],
-                                "category": category,
-                                "description": f"Budget exceeded by ₹{overrun_amount:.2f} ({overrun_percent:.1f}%)",
-                                "detected_at": datetime.utcnow().isoformat()
-                            })
-                            overrun_count += 1
-                
-                # Insert all anomaly records at once
+                    allocated = budget_allocations.get(category, 0)
+                    if allocated > 0 and spent > allocated:
+                        overrun_amount = spent - allocated
+                        overrun_percent = (overrun_amount / allocated * 100)
+                        anomaly_records.append({
+                            "user_id": current_user["id"],
+                            "category": category,
+                            "description": f"Budget exceeded by ₹{overrun_amount:.2f} ({overrun_percent:.1f}%)",
+                            "detected_at": datetime.utcnow().isoformat()
+                        })
                 if anomaly_records:
                     try:
                         db.table("anomalies").insert(anomaly_records).execute()
                     except Exception as e:
                         print(f"Failed to insert anomalies: {str(e)}")
-                
-                if overrun_count > 0:
-                    recommendations.append({
-                        "category": "Budget Management",
-                        "message": f"You have {overrun_count} categories exceeding their allocated budgets. Review your spending to stay on track.",
-                        "type": "warning"
-                    })
         except Exception as e:
-            print(f"Error in budget allocation check: {str(e)}")
-        
-        # Ensure minimum 5 recommendations
-        while len(recommendations) < 5:
-            if len(recommendations) == 4:
-                recommendations.append({
-                    "category": "Financial Health",
-                    "message": "Track your expenses regularly to identify spending patterns and opportunities for savings.",
-                    "type": "info"
-                })
-            elif len(recommendations) == 3:
-                recommendations.append({
-                    "category": "Smart Budgeting",
-                    "message": "Set monthly budgets for each spending category to maintain better control over your finances.",
-                    "type": "info"
-                })
-            elif len(recommendations) == 2:
-                recommendations.append({
-                    "category": "Emergency Fund",
-                    "message": "Build an emergency fund covering 3-6 months of expenses for financial security.",
-                    "type": "success"
-                })
-            elif len(recommendations) == 1:
-                recommendations.append({
-                    "category": "Investment Planning",
-                    "message": "Consider investing your savings in diversified portfolios for long-term wealth creation.",
-                    "type": "success"
-                })
-            else:
-                recommendations.append({
-                    "category": "Getting Started",
-                    "message": "Start by adding your income and setting expense limits to get personalized insights.",
-                    "type": "info"
-                })
+            print(f"Error fetching budget allocations: {str(e)}")
+
+        # Fetch user income for AI context
+        user_income = 0
+        try:
+            income_result = (
+                db.table("income")
+                .select("monthly_income")
+                .eq("user_id", current_user["id"])
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            if income_result.data:
+                user_income = income_result.data[0].get("monthly_income", 0) or 0
+        except:
+            pass
+
+        # Call Groq AI for personalised recommendations
+        recommendations = generate_ai_recommendations(
+            income=user_income,
+            current_month_expenses=current_month_expenses,
+            last_month_expenses=last_month_expenses_by_cat,
+            budget_allocations=budget_allocations,
+            total_expenses=current_month_total,
+        )
         
         # Generate summary
         if total_expenses == 0:
