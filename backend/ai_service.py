@@ -397,6 +397,7 @@ Return format:
         )
 
         response_text = chat_completion.choices[0].message.content.strip()
+        logger.info(f"Groq raw response:\n{response_text}")
         if response_text.startswith("```json"):
             response_text = response_text[7:]
         if response_text.startswith("```"):
@@ -408,6 +409,8 @@ Return format:
         result = json.loads(response_text)
         if isinstance(result, list) and all("category" in r and "message" in r for r in result):
             logger.info(f"Groq AI generated {len(result)} recommendations")
+            for i, rec in enumerate(result):
+                logger.info(f"  [{i+1}] {rec.get('category')}: {rec.get('message')}")
             return result
         raise ValueError("Invalid structure")
 
