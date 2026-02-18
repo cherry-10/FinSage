@@ -6,72 +6,134 @@ from typing import Dict, List
 settings = get_settings()
 client = Groq(api_key=settings.GROQ_API_KEY)
 
+def _rule_based_budget(income: float, target_savings: float, loan_commitments: float, past_expenses: Dict) -> List[Dict]:
+    """Fallback rule-based budget allocation when Groq API is unavailable."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    spendable_amount = income - target_savings - loan_commitments
+    if spendable_amount <= 0:
+        return []
+
+    priority_allocation = {
+        "Rent":          {"min": 0.25, "max": 0.35},
+        "Food":          {"min": 0.15, "max": 0.25},
+        "Bills":         {"min": 0.10, "max": 0.15},
+        "Transport":     {"min": 0.08, "max": 0.12},
+        "Healthcare":    {"min": 0.05, "max": 0.10},
+        "Education":     {"min": 0.05, "max": 0.15},
+        "Shopping":      {"min": 0.05, "max": 0.10},
+        "Entertainment": {"min": 0.03, "max": 0.08},
+        "Other":         {"min": 0.02, "max": 0.05},
+    }
+
+    budget_categories = []
+    for category, config in priority_allocation.items():
+        if past_expenses and category in past_expenses:
+            past_percent = past_expenses[category] / spendable_amount
+            allocated_percent = max(config["min"], min(past_percent, config["max"]))
+        else:
+            allocated_percent = (config["min"] + config["max"]) / 2
+        budget_categories.append({
+            "category": category,
+            "allocated_amount": round(spendable_amount * allocated_percent, 2)
+        })
+
+    total = sum(c["allocated_amount"] for c in budget_categories)
+    if total > spendable_amount:
+        factor = spendable_amount / total
+        for c in budget_categories:
+            c["allocated_amount"] = round(c["allocated_amount"] * factor, 2)
+
+    logger.info(f"Rule-based budget: total={sum(c['allocated_amount'] for c in budget_categories)}, spendable={spendable_amount}")
+    return budget_categories
+
+
 def generate_budget_plan(income: float, target_savings: float, past_expenses: Dict = None, loan_commitments: float = 0) -> List[Dict]:
     import logging
     logger = logging.getLogger(__name__)
-    
-    # HARD CONSTRAINT: total_budget <= monthly_income
-    # spendable_amount = monthly_income - savings_goal - loan_commitments
+
     spendable_amount = income - target_savings - loan_commitments
-    
     if spendable_amount <= 0:
         logger.warning(f"Spendable amount is {spendable_amount}. Income: {income}, Savings: {target_savings}, Loans: {loan_commitments}")
         return []
-    
-    # Define priority-based allocation percentages
-    priority_allocation = {
-        "Rent": {"priority": 1, "min": 0.25, "max": 0.35},
-        "Food": {"priority": 1, "min": 0.15, "max": 0.25},
-        "Bills": {"priority": 1, "min": 0.10, "max": 0.15},
-        "Transport": {"priority": 2, "min": 0.08, "max": 0.12},
-        "Healthcare": {"priority": 1, "min": 0.05, "max": 0.10},
-        "Education": {"priority": 2, "min": 0.05, "max": 0.15},
-        "Shopping": {"priority": 3, "min": 0.05, "max": 0.10},
-        "Entertainment": {"priority": 3, "min": 0.03, "max": 0.08},
-        "Other": {"priority": 3, "min": 0.02, "max": 0.05}
-    }
-    
-    budget_categories = []
-    total_allocated = 0
-    
-    # Allocate based on priority and past spending patterns
-    for category, config in priority_allocation.items():
-        if past_expenses and category in past_expenses:
-            # Use past spending as a guide
-            past_amount = past_expenses[category]
-            past_percent = past_amount / spendable_amount if spendable_amount > 0 else 0
-            # Cap it within min/max range
-            allocated_percent = max(config["min"], min(past_percent, config["max"]))
-        else:
-            # Use average of min/max for new categories
-            allocated_percent = (config["min"] + config["max"]) / 2
-            
-        allocated_amount = spendable_amount * allocated_percent
-        budget_categories.append({
-            "category": category,
-            "allocated_amount": round(allocated_amount, 2)
-        })
-        total_allocated += allocated_amount
-    
-    # MANDATORY: Adjust if total exceeds spendable amount
-    if total_allocated > spendable_amount:
-        logger.info(f"Adjusting budget: {total_allocated} > {spendable_amount}")
-        adjustment_factor = spendable_amount / total_allocated
-        for cat in budget_categories:
-            cat["allocated_amount"] = round(cat["allocated_amount"] * adjustment_factor, 2)
-        total_allocated = sum(cat["allocated_amount"] for cat in budget_categories)
-    
-    # VALIDATION: Ensure total never exceeds spendable amount
-    final_total = sum(cat["allocated_amount"] for cat in budget_categories)
-    if final_total > spendable_amount:
-        logger.error(f"Budget validation failed: {final_total} > {spendable_amount}")
-        # Force proportional reduction
-        reduction_factor = spendable_amount / final_total
-        for cat in budget_categories:
-            cat["allocated_amount"] = round(cat["allocated_amount"] * reduction_factor, 2)
-    
-    logger.info(f"Budget generated: Total={sum(cat['allocated_amount'] for cat in budget_categories)}, Spendable={spendable_amount}")
-    return budget_categories
+
+    past_expenses_str = json.dumps(past_expenses, indent=2) if past_expenses else "{}"
+
+    prompt = f"""You are an expert personal finance AI. Create a smart monthly budget plan.
+
+Financial Details:
+- Monthly Income: ₹{income:.2f}
+- Target Monthly Savings: ₹{target_savings:.2f}
+- Loan/EMI Commitments: ₹{loan_commitments:.2f}
+- Available to Spend (Income - Savings - Loans): ₹{spendable_amount:.2f}
+
+Past Spending Patterns (use this to personalise allocations):
+{past_expenses_str}
+
+Rules:
+1. Total of all allocated_amount values MUST equal exactly ₹{spendable_amount:.2f}
+2. Allocate across these categories: Rent, Food, Bills, Transport, Healthcare, Education, Shopping, Entertainment, Other
+3. Prioritise essential categories (Rent, Food, Bills, Healthcare) over discretionary ones
+4. If past spending data exists, use it to guide allocations (don't deviate more than 20%)
+5. Every category must have allocated_amount > 0
+
+Return ONLY a valid JSON array, no explanation, no markdown:
+[
+  {{"category": "Rent", "allocated_amount": 5000.00}},
+  {{"category": "Food", "allocated_amount": 3000.00}}
+]"""
+
+    try:
+        logger.info("Calling Groq AI for budget generation")
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a financial planning AI. Return only valid JSON arrays."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            model="llama3-8b-8192",
+            temperature=0.2,
+            max_tokens=1000,
+        )
+
+        response_text = chat_completion.choices[0].message.content.strip()
+
+        # Strip markdown fences if present
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+
+        budget_categories = json.loads(response_text)
+
+        # Validate structure
+        if not isinstance(budget_categories, list) or not all(
+            "category" in c and "allocated_amount" in c for c in budget_categories
+        ):
+            raise ValueError("Invalid response structure from Groq")
+
+        # Normalise total to exactly spendable_amount
+        total = sum(float(c["allocated_amount"]) for c in budget_categories)
+        if total > 0 and abs(total - spendable_amount) > 1:
+            factor = spendable_amount / total
+            for c in budget_categories:
+                c["allocated_amount"] = round(float(c["allocated_amount"]) * factor, 2)
+
+        logger.info(f"Groq AI budget generated: {len(budget_categories)} categories, total=₹{sum(c['allocated_amount'] for c in budget_categories):.2f}")
+        return budget_categories
+
+    except Exception as e:
+        logger.error(f"Groq API budget generation failed: {str(e)}. Using rule-based fallback.")
+        return _rule_based_budget(income, target_savings, loan_commitments, past_expenses)
 
 def rule_based_anomaly_detection(
     income: float,
