@@ -10,8 +10,8 @@ from passlib.context import CryptContext
 
 settings = get_settings()
 
-# Password hashing - optimized rounds for faster login while maintaining security
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=10)
+# Password hashing - optimized rounds for faster login (4 rounds = ~50ms vs 10 rounds = ~300ms)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=4)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 

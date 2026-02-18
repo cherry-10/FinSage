@@ -1,13 +1,17 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-from datetime import datetime
-from typing import List
+from datetime import datetime, timedelta
+from typing import List, Optional
 
 import schemas
 import auth
 from database import get_db
 from ai_service import generate_budget_plan, detect_anomalies
+import secrets
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 app = FastAPI(title="FinSage API", version="1.0.0")
 
@@ -150,6 +154,175 @@ def login(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Login failed: {str(e)}"
         )
+
+# ============================================
+# AUTH: FORGOT PASSWORD
+# ============================================
+@app.post("/api/auth/forgot-password")
+def forgot_password(
+    email: str,
+    db=Depends(get_db),
+):
+    try:
+        # Check if user exists
+        result = (
+            db.table("users")
+            .select("id, email")
+            .eq("email", email)
+            .execute()
+        )
+        
+        if not result.data:
+            # Don't reveal if email exists or not for security
+            return {"message": "If the email exists, a password reset link has been sent."}
+        
+        user = result.data[0]
+        
+        # Generate reset token (valid for 1 hour)
+        reset_token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(hours=1)
+        
+        # Store reset token in database
+        db.table("password_resets").insert({
+            "user_id": user["id"],
+            "token": reset_token,
+            "expires_at": expires_at.isoformat(),
+            "created_at": datetime.utcnow().isoformat()
+        }).execute()
+        
+        # Send email with reset link
+        reset_link = f"https://fin-sage-nks6.vercel.app/reset-password?token={reset_token}"
+        send_reset_email(user["email"], reset_link)
+        
+        return {"message": "If the email exists, a password reset link has been sent."}
+    
+    except Exception as e:
+        print(f"Forgot password error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process password reset request"
+        )
+
+# ============================================
+# AUTH: RESET PASSWORD
+# ============================================
+@app.post("/api/auth/reset-password")
+def reset_password(
+    token: str,
+    new_password: str,
+    db=Depends(get_db),
+):
+    try:
+        # Find valid reset token
+        result = (
+            db.table("password_resets")
+            .select("*")
+            .eq("token", token)
+            .execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token"
+            )
+        
+        reset_record = result.data[0]
+        
+        # Check if token is expired
+        expires_at = datetime.fromisoformat(reset_record["expires_at"].replace("Z", "+00:00"))
+        if datetime.utcnow() > expires_at.replace(tzinfo=None):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Reset token has expired"
+            )
+        
+        # Hash new password
+        new_password_hash = auth.hash_password(new_password)
+        
+        # Update user password
+        db.table("users").update({
+            "password_hash": new_password_hash
+        }).eq("id", reset_record["user_id"]).execute()
+        
+        # Delete used reset token
+        db.table("password_resets").delete().eq("token", token).execute()
+        
+        return {"message": "Password has been reset successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Reset password error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to reset password"
+        )
+
+# ============================================
+# EMAIL UTILITY
+# ============================================
+def send_reset_email(to_email: str, reset_link: str):
+    """Send password reset email"""
+    try:
+        # Email configuration (using Gmail SMTP)
+        smtp_server = "smtp.gmail.com"
+        smtp_port = 587
+        sender_email = "charanteja1039@gmail.com"
+        sender_password = "your_app_password"  # Use App Password, not regular password
+        
+        # Create message
+        message = MIMEMultipart("alternative")
+        message["Subject"] = "FinSage - Password Reset Request"
+        message["From"] = sender_email
+        message["To"] = to_email
+        
+        # Email body
+        html = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h2 style="color: #3b82f6;">Password Reset Request</h2>
+              <p>You requested to reset your password for your FinSage account.</p>
+              <p>Click the button below to reset your password:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="{reset_link}" 
+                   style="background-color: #3b82f6; color: white; padding: 12px 30px; 
+                          text-decoration: none; border-radius: 5px; display: inline-block;">
+                  Reset Password
+                </a>
+              </div>
+              <p style="color: #666; font-size: 14px;">
+                This link will expire in 1 hour. If you didn't request this, please ignore this email.
+              </p>
+              <p style="color: #666; font-size: 14px;">
+                Or copy and paste this link into your browser:<br>
+                <a href="{reset_link}" style="color: #3b82f6;">{reset_link}</a>
+              </p>
+              <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+              <p style="color: #999; font-size: 12px; text-align: center;">
+                FinSage - Personal Finance Management<br>
+                This is an automated email, please do not reply.
+              </p>
+            </div>
+          </body>
+        </html>
+        """
+        
+        part = MIMEText(html, "html")
+        message.attach(part)
+        
+        # Send email
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, to_email, message.as_string())
+        
+        print(f"Password reset email sent to {to_email}")
+    
+    except Exception as e:
+        print(f"Failed to send email: {str(e)}")
+        # Don't raise exception - we don't want to reveal email sending failures
 
 # ============================================
 # AUTH: GET CURRENT USER

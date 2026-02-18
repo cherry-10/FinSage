@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { DollarSign, Mail, Lock, ArrowRight } from 'lucide-react';
+import { DollarSign, Mail, Lock, ArrowRight, X } from 'lucide-react';
+import axios from 'axios';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -10,6 +11,10 @@ const Login = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -29,6 +34,30 @@ const Login = () => {
       setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setResetMessage('');
+    setResetLoading(true);
+
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/auth/forgot-password`,
+        null,
+        { params: { email: resetEmail } }
+      );
+      setResetMessage(response.data.message || 'Password reset link sent to your email!');
+      setTimeout(() => {
+        setShowForgotPassword(false);
+        setResetEmail('');
+        setResetMessage('');
+      }, 3000);
+    } catch (err) {
+      setResetMessage(err.response?.data?.detail || 'Failed to send reset email. Please try again.');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -108,6 +137,16 @@ const Login = () => {
             </button>
           </form>
 
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-sm text-primary-600 hover:text-primary-700 font-semibold transition-colors"
+            >
+              Forgot your password?
+            </button>
+          </div>
+
           <div className="mt-6 text-center">
             <p className="text-sm sm:text-base text-gray-600">
               Don't have an account?{' '}
@@ -117,6 +156,72 @@ const Login = () => {
             </p>
           </div>
         </div>
+
+        {/* Forgot Password Modal */}
+        {showForgotPassword && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full animate-fadeIn">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Reset Password</h3>
+                <button
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setResetEmail('');
+                    setResetMessage('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-4">
+                Enter your email address and we'll send you a link to reset your password.
+              </p>
+
+              {resetMessage && (
+                <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${
+                  resetMessage.includes('sent') || resetMessage.includes('exists')
+                    ? 'bg-green-50 border-2 border-green-300 text-green-700'
+                    : 'bg-red-50 border-2 border-red-300 text-red-700'
+                }`}>
+                  {resetMessage}
+                </div>
+              )}
+
+              <form onSubmit={handleForgotPassword}>
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type="email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      required
+                      className="input-field pl-12"
+                      placeholder="john@example.com"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="w-full btn-primary py-3 text-base font-bold"
+                >
+                  {resetLoading ? (
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mx-auto"></div>
+                  ) : (
+                    'Send Reset Link'
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
