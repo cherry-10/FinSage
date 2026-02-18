@@ -3,7 +3,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useTheme } from '../context/ThemeContext';
 import axios from 'axios';
-import { TrendingUp, AlertTriangle, Calendar, DollarSign, Activity, RefreshCw } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Calendar, Activity, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 const Predict = () => {
@@ -140,7 +140,7 @@ const Predict = () => {
           {prediction && (
             <>
               {/* Prediction Cards */}
-              <div className="grid-stats section-spacing">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 section-spacing">
                 {/* Predicted Amount Card */}
                 <div className={`stat-card ${isDark ? 'bg-gradient-to-br from-primary-900 to-primary-800 border-primary-700' : 'bg-gradient-to-br from-primary-50 to-primary-100 border-primary-200'}`}>
                   <div className="flex items-center justify-between mb-2">
@@ -171,27 +171,12 @@ const Predict = () => {
                       <span className="font-semibold">Upper:</span> ₹{prediction.confidence_range.upper.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                     </p>
                   </div>
-                  <p className={`text-xs mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    80% confidence interval
-                  </p>
-                </div>
-
-                {/* Method Card */}
-                <div className={`stat-card ${isDark ? 'bg-gray-800 border-gray-700' : ''}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className={`card-label ${isDark ? 'text-gray-300' : ''}`}>Prediction Method</p>
-                    <DollarSign className={isDark ? 'text-gray-400' : 'text-gray-600'} size={20} />
+                  <div className="flex items-center justify-between mt-2">
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>80% confidence interval</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                      {prediction.historical_data.length} month{prediction.historical_data.length !== 1 ? 's' : ''} of data
+                    </span>
                   </div>
-                  <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {prediction.method === 'prophet' ? 'AI Time-Series' :
-                     prediction.method === 'weighted_average' ? 'Weighted Average' :
-                     prediction.method === 'daily_average' ? 'Daily Average' :
-                     prediction.method === 'none' ? 'No Data' :
-                     prediction.method || 'Weighted Average'}
-                  </p>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {prediction.historical_data.length} month{prediction.historical_data.length !== 1 ? 's' : ''} of data
-                  </p>
                 </div>
               </div>
 
