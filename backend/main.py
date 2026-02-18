@@ -216,6 +216,55 @@ def forgot_password(
         )
 
 # ============================================
+# AUTH: DIRECT PASSWORD RESET (no token needed)
+# ============================================
+@app.post("/api/auth/direct-reset-password")
+def direct_reset_password(
+    email: str,
+    new_password: str,
+    db=Depends(get_db),
+):
+    try:
+        # Find user by email
+        result = (
+            db.table("users")
+            .select("id, email")
+            .eq("email", email)
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No account found with this email address"
+            )
+
+        user = result.data[0]
+
+        if len(new_password) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 6 characters"
+            )
+
+        new_password_hash = auth.hash_password(new_password)
+
+        db.table("users").update({
+            "password_hash": new_password_hash
+        }).eq("id", user["id"]).execute()
+
+        return {"message": "Password has been reset successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Direct reset password error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to reset password"
+        )
+
+# ============================================
 # AUTH: RESET PASSWORD
 # ============================================
 @app.post("/api/auth/reset-password")
@@ -1485,8 +1534,8 @@ def predict_expense(
         next_month_date = next_month_date.replace(day=1)
         predicted_month = next_month_date.strftime("%B %Y")
         
-        # METHOD 1: Less than 2 months - Use daily average projection
-        if num_months < 2:
+        # METHOD 1: Less than 1 month - Use daily average projection
+        if num_months < 1:
             # Calculate total days with transactions
             total_expenses = sum(monthly_expenses.values())
             

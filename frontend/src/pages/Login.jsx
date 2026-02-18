@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { DollarSign, Mail, Lock, ArrowRight, X } from 'lucide-react';
+import { DollarSign, Mail, Lock, ArrowRight, X, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
 const Login = () => {
@@ -13,8 +13,13 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [resetMessage, setResetMessage] = useState('');
+  const [resetError, setResetError] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -37,25 +42,40 @@ const Login = () => {
     }
   };
 
+  const closeForgotPassword = () => {
+    setShowForgotPassword(false);
+    setResetEmail('');
+    setResetNewPassword('');
+    setResetConfirmPassword('');
+    setResetMessage('');
+    setResetError('');
+  };
+
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setResetMessage('');
-    setResetLoading(true);
+    setResetError('');
 
+    if (resetNewPassword !== resetConfirmPassword) {
+      setResetError('Passwords do not match.');
+      return;
+    }
+    if (resetNewPassword.length < 6) {
+      setResetError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setResetLoading(true);
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/auth/forgot-password`,
+        `${import.meta.env.VITE_API_URL}/api/auth/direct-reset-password`,
         null,
-        { params: { email: resetEmail } }
+        { params: { email: resetEmail, new_password: resetNewPassword } }
       );
-      setResetMessage(response.data.message || 'Password reset link sent to your email!');
-      setTimeout(() => {
-        setShowForgotPassword(false);
-        setResetEmail('');
-        setResetMessage('');
-      }, 3000);
+      setResetMessage(response.data.message || 'Password reset successfully!');
+      setTimeout(() => closeForgotPassword(), 2500);
     } catch (err) {
-      setResetMessage(err.response?.data?.detail || 'Failed to send reset email. Please try again.');
+      setResetError(err.response?.data?.detail || 'Failed to reset password. Please try again.');
     } finally {
       setResetLoading(false);
     }
@@ -163,37 +183,29 @@ const Login = () => {
             <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full animate-fadeIn">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-gray-900">Reset Password</h3>
-                <button
-                  onClick={() => {
-                    setShowForgotPassword(false);
-                    setResetEmail('');
-                    setResetMessage('');
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
+                <button onClick={closeForgotPassword} className="text-gray-400 hover:text-gray-600 transition-colors">
                   <X size={24} />
                 </button>
               </div>
 
               <p className="text-sm text-gray-600 mb-4">
-                Enter your email address and we'll send you a link to reset your password.
+                Enter your registered email and set a new password directly.
               </p>
 
               {resetMessage && (
-                <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${
-                  resetMessage.includes('sent') || resetMessage.includes('exists')
-                    ? 'bg-green-50 border-2 border-green-300 text-green-700'
-                    : 'bg-red-50 border-2 border-red-300 text-red-700'
-                }`}>
+                <div className="mb-4 p-3 rounded-lg text-sm font-medium bg-green-50 border-2 border-green-300 text-green-700">
                   {resetMessage}
                 </div>
               )}
+              {resetError && (
+                <div className="mb-4 p-3 rounded-lg text-sm font-medium bg-red-50 border-2 border-red-300 text-red-700">
+                  {resetError}
+                </div>
+              )}
 
-              <form onSubmit={handleForgotPassword}>
-                <div className="mb-4">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email Address
-                  </label>
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     <input
@@ -207,6 +219,50 @@ const Login = () => {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={resetNewPassword}
+                      onChange={(e) => setResetNewPassword(e.target.value)}
+                      required
+                      className="input-field pl-12 pr-12"
+                      placeholder="Min. 6 characters"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm New Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={resetConfirmPassword}
+                      onChange={(e) => setResetConfirmPassword(e.target.value)}
+                      required
+                      className="input-field pl-12 pr-12"
+                      placeholder="Re-enter new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   type="submit"
                   disabled={resetLoading}
@@ -215,7 +271,7 @@ const Login = () => {
                   {resetLoading ? (
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mx-auto"></div>
                   ) : (
-                    'Send Reset Link'
+                    'Reset Password'
                   )}
                 </button>
               </form>
