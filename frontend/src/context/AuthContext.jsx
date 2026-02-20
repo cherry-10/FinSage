@@ -3,47 +3,56 @@ import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
+// Decode JWT payload without verifying signature (verification happens on backend)
+const decodeToken = (token) => {
+  try {
+    const payload = token.split('.')[1];
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    // Check expiry
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) return null;
+    return { id: decoded.id, email: decoded.sub, name: decoded.name || '' };
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token] = useState(localStorage.getItem('token'));
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('token');
+    return saved ? decodeToken(saved) : null;
+  });
+  const [loading, setLoading] = useState(false);
 
+  // On mount: if token exists but is expired/invalid, log out
   useEffect(() => {
-    if (token) {
-      fetchUser();
-    } else {
-      setLoading(false);
+    const saved = localStorage.getItem('token');
+    if (saved) {
+      const decoded = decodeToken(saved);
+      if (!decoded) {
+        logout();
+      }
     }
-  }, [token]);
-
-  const fetchUser = async () => {
-    try {
-      const response = await authAPI.getCurrentUser();
-      setUser(response.data);
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, []);
 
   const login = async (email, password) => {
     const response = await authAPI.login(email, password);
     const { access_token } = response.data;
     localStorage.setItem('token', access_token);
-    setToken(access_token);
-    await fetchUser();
+    const decoded = decodeToken(access_token);
+    setUser(decoded);
   };
 
   const register = async (userData) => {
-    await authAPI.register(userData);
-    await login(userData.email, userData.password);
+    const response = await authAPI.register(userData);
+    const { access_token } = response.data;
+    localStorage.setItem('token', access_token);
+    const decoded = decodeToken(access_token);
+    setUser(decoded);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
-    setToken(null);
     setUser(null);
   };
 

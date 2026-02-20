@@ -74,11 +74,12 @@ async def get_current_user(
         
         email = payload.get("sub")
         user_id = payload.get("id")
+        name = payload.get("name", "")
         
         if not email or not user_id:
             raise credentials_exception
             
-        return {"id": user_id, "email": email}
+        return {"id": user_id, "email": email, "name": name}
         
     except JWTError:
         raise credentials_exception

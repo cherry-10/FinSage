@@ -111,7 +111,7 @@ def register(
         
         # Create access token
         access_token = auth.create_access_token(
-            data={"sub": user["email"], "id": user["id"]}
+            data={"sub": user["email"], "id": user["id"], "name": user.get("name", "")}
         )
         
         return {"access_token": access_token, "token_type": "bearer"}
@@ -155,7 +155,7 @@ def login(
             )
 
         access_token = auth.create_access_token(
-            data={"sub": user["email"], "id": user["id"]}
+            data={"sub": user["email"], "id": user["id"], "name": user.get("name", "")}
         )
 
         return {"access_token": access_token, "token_type": "bearer"}
@@ -389,30 +389,17 @@ def send_reset_email(to_email: str, reset_link: str):
 # ============================================
 # AUTH: GET CURRENT USER
 # ============================================
-@app.get("/api/auth/me", response_model=schemas.UserResponse)
+@app.get("/api/auth/me")
 async def get_current_user_info(
     current_user=Depends(auth.get_current_user),
-    db=Depends(get_db),
 ):
-    """Get current authenticated user information"""
+    """Get current authenticated user information - decoded from JWT, no DB call"""
     try:
-        result = (
-            db.table("users")
-            .select("*")
-            .eq("id", current_user["id"])
-            .execute()
-        )
-        
-        if not result.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-        
-        return result.data[0]
-    
-    except HTTPException:
-        raise
+        return {
+            "id": current_user["id"],
+            "email": current_user["email"],
+            "name": current_user.get("name", ""),
+        }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
