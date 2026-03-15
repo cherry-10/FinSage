@@ -392,14 +392,35 @@ def send_reset_email(to_email: str, reset_link: str):
 @app.get("/api/auth/me")
 async def get_current_user_info(
     current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
 ):
-    """Get current authenticated user information - decoded from JWT, no DB call"""
+    """Get current authenticated user information - fetch from database"""
     try:
+        # Fetch full user data from database
+        result = (
+            db.table("users")
+            .select("*")
+            .eq("id", current_user["id"])
+            .execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        user_data = result.data[0]
         return {
-            "id": current_user["id"],
-            "email": current_user["email"],
-            "name": current_user.get("name", ""),
+            "id": user_data["id"],
+            "email": user_data["email"],
+            "name": user_data.get("name", ""),
+            "phone": user_data.get("phone", ""),
+            "annual_salary": user_data.get("annual_salary"),
+            "created_at": user_data.get("created_at")
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1513,7 +1534,9 @@ def predict_expense(
                 "confidence_range": {"lower": 0, "upper": 0},
                 "historical_data": [],
                 "insight": "No transaction history available. Start adding expenses to get predictions.",
-                "method": "none"
+                "method": "none",
+                "monthly_income": round(user_income, 2),
+                "budget_total": round(budget_total, 2)
             }
         
         # Aggregate expenses by month
