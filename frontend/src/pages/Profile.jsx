@@ -327,7 +327,7 @@ const Profile = () => {
                           </div>
                           <div>
                             <p className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'} uppercase tracking-wide`}>Phone Number</p>
-                            <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'} mt-0.5`}>{user?.phone || 'Not set'}</p>
+                            <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'} mt-0.5`}>{formData.phone || 'Not set'}</p>
                           </div>
                         </div>
                       </div>
@@ -340,11 +340,11 @@ const Profile = () => {
                           <div>
                             <p className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'} uppercase tracking-wide`}>Annual Salary</p>
                             <p className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'} mt-0.5`}>
-                              {user?.annual_salary ? `₹${parseFloat(user.annual_salary).toLocaleString('en-IN')}` : 'Not set'}
+                              {formData.annual_salary ? `₹${parseFloat(formData.annual_salary).toLocaleString('en-IN')}` : 'Not set'}
                             </p>
-                            {user?.annual_salary && (
+                            {formData.annual_salary && (
                               <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-                                💰 Monthly: ₹{(parseFloat(user.annual_salary) / 12).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                                💰 Monthly: ₹{(parseFloat(formData.annual_salary) / 12).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                               </p>
                             )}
                           </div>
