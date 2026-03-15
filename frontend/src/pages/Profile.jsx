@@ -27,17 +27,26 @@ const Profile = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
 
+  // Update formData when user data loads
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        phone: user.phone || '',
+        annual_salary: user.annual_salary || ''
+      });
+    }
+  }, [user]);
+
   const monthlySalary = formData.annual_salary ? (parseFloat(formData.annual_salary) / 12).toFixed(2) : '0.00';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await updateUser({
+      await updateUser({
         ...formData,
         annual_salary: formData.annual_salary ? parseFloat(formData.annual_salary) : null
       });
-      // Update local user state immediately so all pages see new income
-      setUser(response.data);
       setEditing(false);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
