@@ -651,12 +651,12 @@ def generate_budget(
             .execute()
         )
         
-        # Determine income
+        # Determine income - prioritize users.annual_salary (latest from profile) over income.monthly_income
         income = None
-        if income_result.data and income_result.data[0].get("monthly_income"):
-            income = income_result.data[0]["monthly_income"]
-        elif user_result.data and user_result.data[0].get("annual_salary"):
+        if user_result.data and user_result.data[0].get("annual_salary"):
             income = float(user_result.data[0]["annual_salary"]) / 12
+        elif income_result.data and income_result.data[0].get("monthly_income"):
+            income = income_result.data[0]["monthly_income"]
         
         if not income:
             raise HTTPException(
@@ -1475,6 +1475,29 @@ def predict_expense(
         
         transactions = transactions_result.data if transactions_result.data else []
         
+        # Fetch latest income (users.annual_salary takes priority over income.monthly_income)
+        user_result = (
+            db.table("users")
+            .select("annual_salary")
+            .eq("id", current_user["id"])
+            .execute()
+        )
+        income_result = (
+            db.table("income")
+            .select("monthly_income")
+            .eq("user_id", current_user["id"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        
+        # Determine income - prioritize users.annual_salary (latest from profile) over income.monthly_income
+        latest_income = None
+        if user_result.data and user_result.data[0].get("annual_salary"):
+            latest_income = float(user_result.data[0]["annual_salary"]) / 12
+        elif income_result.data and income_result.data[0].get("monthly_income"):
+            latest_income = income_result.data[0]["monthly_income"]
+        
         if not transactions:
             return {
                 "predicted_month": (datetime.utcnow() + timedelta(days=30)).strftime("%B %Y"),
@@ -1576,13 +1599,14 @@ def predict_expense(
 
         # ── Insight generation (shared for both paths) ──
         change_percent = ((predicted_amount - last_month_amount) / last_month_amount * 100) if last_month_amount > 0 else 0
+        income_ratio = (predicted_amount / latest_income * 100) if latest_income and latest_income > 0 else 0
 
         if change_percent > 10:
-            insight = f"Predicted a {abs(change_percent):.1f}% increase in expenses next month. Consider reviewing your budget allocations."
+            insight = f"Predicted a {abs(change_percent):.1f}% increase in expenses next month ({income_ratio:.1f}% of your monthly income). Consider reviewing your budget allocations."
         elif change_percent < -10:
-            insight = f"Predicted a {abs(change_percent):.1f}% decrease in expenses next month. Great job managing your spending!"
+            insight = f"Predicted a {abs(change_percent):.1f}% decrease in expenses next month ({income_ratio:.1f}% of income). Great job managing your spending!"
         else:
-            insight = f"Expenses predicted to remain stable next month, similar to your recent spending pattern."
+            insight = f"Expenses predicted to remain stable next month at {income_ratio:.1f}% of your income, similar to your recent spending pattern."
 
         # Store prediction (optional, ignore errors)
         try:

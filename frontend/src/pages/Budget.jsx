@@ -67,7 +67,7 @@ const Budget = () => {
         const categories = Object.values(categoryMap);
         const totalBudget = categories.reduce((sum, c) => sum + c.allocated, 0);
         const monthlySpent = categories.reduce((sum, c) => sum + c.spent, 0);
-        const monthlyIncome = user?.annual_salary ? (parseFloat(user.annual_salary) / 12) : 50000;
+        const monthlyIncome = user?.annual_salary ? (parseFloat(user.annual_salary) / 12) : 0;
 
         setBudgetPlan({
           total_income: monthlyIncome,
@@ -98,7 +98,7 @@ const Budget = () => {
       });
 
       // Get monthly income
-      const monthlyIncome = user?.annual_salary ? (parseFloat(user.annual_salary) / 12) : 50000;
+      const monthlyIncome = user?.annual_salary ? (parseFloat(user.annual_salary) / 12) : 0;
 
       // Define priority categories with intelligent allocation
       const priorityCategories = {
