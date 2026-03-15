@@ -27,14 +27,33 @@ const Profile = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  // Update formData when user data loads
+  // Fetch full user data from database when component mounts
   useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await authAPI.getCurrentUser();
+        if (response.data) {
+          setFormData({
+            name: response.data.name || '',
+            phone: response.data.phone || '',
+            annual_salary: response.data.annual_salary || ''
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+        // Fallback to basic JWT data if API fails
+        if (user) {
+          setFormData({
+            name: user.name || '',
+            phone: '',
+            annual_salary: ''
+          });
+        }
+      }
+    };
+
     if (user) {
-      setFormData({
-        name: user.name || '',
-        phone: user.phone || '',
-        annual_salary: user.annual_salary || ''
-      });
+      fetchUserData();
     }
   }, [user]);
 
