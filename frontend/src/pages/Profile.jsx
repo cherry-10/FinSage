@@ -30,17 +30,26 @@ const Profile = () => {
   // Fetch full user data from database when component mounts
   useEffect(() => {
     const fetchUserData = async () => {
+      console.log('Profile: Starting fetchUserData, user:', user);
       try {
         const response = await authAPI.getCurrentUser();
+        console.log('Profile: API response:', response);
+        console.log('Profile: Response data:', response.data);
         if (response.data) {
           setFormData({
             name: response.data.name || '',
             phone: response.data.phone || '',
             annual_salary: response.data.annual_salary || ''
           });
+          console.log('Profile: Form data set to:', {
+            name: response.data.name || '',
+            phone: response.data.phone || '',
+            annual_salary: response.data.annual_salary || ''
+          });
         }
       } catch (error) {
-        console.error('Failed to fetch user data:', error);
+        console.error('Profile: Failed to fetch user data:', error);
+        console.error('Profile: Error response:', error.response);
         // Fallback to basic JWT data if API fails
         if (user) {
           setFormData({
@@ -48,12 +57,15 @@ const Profile = () => {
             phone: '',
             annual_salary: ''
           });
+          console.log('Profile: Fallback to JWT data');
         }
       }
     };
 
     if (user) {
       fetchUserData();
+    } else {
+      console.log('Profile: No user data available yet');
     }
   }, [user]);
 

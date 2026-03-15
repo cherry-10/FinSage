@@ -396,6 +396,8 @@ async def get_current_user_info(
 ):
     """Get current authenticated user information - fetch from database"""
     try:
+        print(f"API: /api/auth/me called for user_id: {current_user['id']}")
+        
         # Fetch full user data from database
         result = (
             db.table("users")
@@ -404,6 +406,8 @@ async def get_current_user_info(
             .execute()
         )
         
+        print(f"API: Database query result: {result.data}")
+        
         if not result.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -411,7 +415,7 @@ async def get_current_user_info(
             )
         
         user_data = result.data[0]
-        return {
+        response_data = {
             "id": user_data["id"],
             "email": user_data["email"],
             "name": user_data.get("name", ""),
@@ -419,9 +423,14 @@ async def get_current_user_info(
             "annual_salary": user_data.get("annual_salary"),
             "created_at": user_data.get("created_at")
         }
+        
+        print(f"API: Returning user data: {response_data}")
+        return response_data
+        
     except HTTPException:
         raise
     except Exception as e:
+        print(f"API: Error in /api/auth/me: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch user: {str(e)}"
