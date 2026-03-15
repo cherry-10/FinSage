@@ -3,7 +3,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { transactionAPI } from '../services/api';
+import { transactionAPI, authAPI } from '../services/api';
 import { Plus, Trash2, TrendingUp, TrendingDown, Filter, Calendar } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 

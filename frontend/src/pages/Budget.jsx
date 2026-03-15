@@ -3,7 +3,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { budgetAPI, transactionAPI, expenseLimitAPI, userAPI } from '../services/api';
+import { budgetAPI, transactionAPI, expenseLimitAPI, userAPI, authAPI } from '../services/api';
 import { PiggyBank, TrendingUp, Target, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
