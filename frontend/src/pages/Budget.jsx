@@ -3,17 +3,18 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { budgetAPI, transactionAPI, expenseLimitAPI } from '../services/api';
+import { budgetAPI, transactionAPI, expenseLimitAPI, userAPI } from '../services/api';
 import { PiggyBank, TrendingUp, Target, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const Budget = () => {
-  const { user } = useAuth();
   const { isDark } = useTheme();
-  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
   const [budgetPlan, setBudgetPlan] = useState(null);
   const [expenseLimit, setExpenseLimit] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [userData, setUserData] = useState(null);
   const [limitData, setLimitData] = useState({
     monthly_limit: '',
     target_savings: ''
@@ -21,7 +22,19 @@ const Budget = () => {
 
   useEffect(() => {
     fetchBudgetData();
+    fetchUserData();
   }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const response = await authAPI.getCurrentUser();
+      if (response.data) {
+        setUserData(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user data:', error);
+    }
+  };
 
   const fetchBudgetData = async () => {
     try {
@@ -71,7 +84,7 @@ const Budget = () => {
         const categories = Object.values(categoryMap);
         const totalBudget = categories.reduce((sum, c) => sum + c.allocated, 0);
         const monthlySpent = categories.reduce((sum, c) => sum + c.spent, 0);
-        const monthlyIncome = user?.annual_salary ? (parseFloat(user.annual_salary) / 12) : 0;
+        const monthlyIncome = userData?.annual_salary ? (parseFloat(userData.annual_salary) / 12) : 0;
 
         setBudgetPlan({
           total_income: monthlyIncome,
@@ -102,7 +115,7 @@ const Budget = () => {
       });
 
       // Get monthly income
-      const monthlyIncome = user?.annual_salary ? (parseFloat(user.annual_salary) / 12) : 0;
+      const monthlyIncome = userData?.annual_salary ? (parseFloat(userData.annual_salary) / 12) : 0;
 
       // Define priority categories with intelligent allocation
       const priorityCategories = {

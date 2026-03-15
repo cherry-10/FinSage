@@ -15,6 +15,7 @@ const Transactions = () => {
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState('this_month');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [userData, setUserData] = useState(null);
   const [formData, setFormData] = useState({
     category: '',
     amount: '',
@@ -28,7 +29,19 @@ const Transactions = () => {
 
   useEffect(() => {
     fetchTransactions();
+    fetchUserData();
   }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const response = await authAPI.getCurrentUser();
+      if (response.data) {
+        setUserData(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user data:', error);
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -109,7 +122,7 @@ const Transactions = () => {
   const totalExpenses = filteredTransactions.filter(t => t.transaction_type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   
   // Total income derived ONLY from annual_salary / 12 (not from credit transactions)
-  const monthlyIncome = user?.annual_salary ? user.annual_salary / 12 : 0;
+  const monthlyIncome = userData?.annual_salary ? parseFloat(userData.annual_salary) / 12 : 0;
   const totalIncome = monthlyIncome;
   const netBalance = totalIncome - totalExpenses;
 
