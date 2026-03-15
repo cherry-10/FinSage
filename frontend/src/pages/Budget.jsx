@@ -31,6 +31,10 @@ const Budget = () => {
         transactionAPI.getAll().catch(() => ({ data: [] }))
       ]);
       
+      console.log('Budget API Response:', budgetResponse);
+      console.log('Limit API Response:', limitResponse);
+      console.log('Transactions API Response:', transactionsResponse);
+      
       if (budgetResponse.data.length > 0) {
         const budgetItems = budgetResponse.data;
         const categoryMap = {};
@@ -439,6 +443,28 @@ const Budget = () => {
                 </div>
               </div>
             </>
+          )}
+
+          {/* No Budget State */}
+          {!budgetPlan && (
+            <div className="section-spacing">
+              <div className={`card ${isDark ? 'bg-gray-800 border-gray-700' : ''} p-12 text-center`}>
+                <PiggyBank className={`mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} size={48} />
+                <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  No Budget Plan Yet
+                </h3>
+                <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} mb-6 max-w-md mx-auto`}>
+                  Generate your first intelligent budget plan to start tracking your expenses and achieving your financial goals.
+                </p>
+                <button
+                  onClick={generateIntelligentBudget}
+                  disabled={loading}
+                  className="btn-primary"
+                >
+                  {loading ? 'Generating...' : 'Generate Smart Budget'}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

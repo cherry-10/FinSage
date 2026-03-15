@@ -33,6 +33,7 @@ const Transactions = () => {
   const fetchTransactions = async () => {
     try {
       const response = await transactionAPI.getAll();
+      console.log('Transactions API Response:', response);
       setTransactions(response.data);
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
