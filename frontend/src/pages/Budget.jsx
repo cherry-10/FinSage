@@ -21,18 +21,26 @@ const Budget = () => {
   });
 
   useEffect(() => {
-    fetchBudgetData();
     fetchUserData();
   }, []);
 
+  useEffect(() => {
+    if (userData) {
+      fetchBudgetData();
+    }
+  }, [userData]);
+
   const fetchUserData = async () => {
     try {
+      console.log('Budget: Starting fetchUserData');
       const response = await authAPI.getCurrentUser();
+      console.log('Budget: User data response:', response);
       if (response.data) {
         setUserData(response.data);
+        console.log('Budget: User data set:', response.data);
       }
     } catch (error) {
-      console.error('Failed to fetch user data:', error);
+      console.error('Budget: Failed to fetch user data:', error);
     }
   };
 
@@ -85,6 +93,11 @@ const Budget = () => {
         const totalBudget = categories.reduce((sum, c) => sum + c.allocated, 0);
         const monthlySpent = categories.reduce((sum, c) => sum + c.spent, 0);
         const monthlyIncome = userData?.annual_salary ? (parseFloat(userData.annual_salary) / 12) : 0;
+        console.log('Budget: Monthly income calculation:', {
+          userData,
+          annual_salary: userData?.annual_salary,
+          monthlyIncome
+        });
 
         setBudgetPlan({
           total_income: monthlyIncome,
