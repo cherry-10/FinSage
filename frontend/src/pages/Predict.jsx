@@ -15,7 +15,6 @@ const Predict = () => {
 
   useEffect(() => {
     fetchPrediction();
-    fetchUserBudget();
   }, []);
 
   const fetchPrediction = async () => {
@@ -30,28 +29,15 @@ const Predict = () => {
         }
       );
       setPrediction(response.data);
+      // Set budget from prediction response
+      if (response.data.budget_total) {
+        setUserBudget(response.data.budget_total);
+      }
     } catch (err) {
       console.error('Failed to fetch prediction:', err);
       setError(err.response?.data?.detail || 'Failed to generate expense prediction. Please try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchUserBudget = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/budget/summary`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-      if (response.data && response.data.total_allocated) {
-        setUserBudget(response.data.total_allocated);
-      }
-    } catch (err) {
-      console.error('Failed to fetch budget:', err);
     }
   };
 

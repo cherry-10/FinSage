@@ -633,7 +633,15 @@ def generate_budget(
     db=Depends(get_db),
 ):
     try:
-        # Get latest income
+        # Get user's annual salary (primary source)
+        user_result = (
+            db.table("users")
+            .select("annual_salary")
+            .eq("id", current_user["id"])
+            .execute()
+        )
+        
+        # Get latest income from income table as fallback
         income_result = (
             db.table("income")
             .select("*")
@@ -643,15 +651,7 @@ def generate_budget(
             .execute()
         )
         
-        # Get user's annual salary as fallback
-        user_result = (
-            db.table("users")
-            .select("annual_salary")
-            .eq("id", current_user["id"])
-            .execute()
-        )
-        
-        # Determine income - prioritize users.annual_salary (latest from profile) over income.monthly_income
+        # Determine income - prioritize annual_salary
         income = None
         if user_result.data and user_result.data[0].get("annual_salary"):
             income = float(user_result.data[0]["annual_salary"]) / 12
@@ -1464,6 +1464,37 @@ def predict_expense(
     db=Depends(get_db),
 ):
     try:
+        # Get user's annual salary for context
+        user_income = 0
+        try:
+            user_result = (
+                db.table("users")
+                .select("annual_salary")
+                .eq("id", current_user["id"])
+                .execute()
+            )
+            if user_result.data and user_result.data[0].get("annual_salary"):
+                annual_salary = float(user_result.data[0]["annual_salary"])
+                user_income = annual_salary / 12
+        except:
+            pass
+        
+        # Get current month budget for comparison
+        budget_total = 0
+        try:
+            current_month = datetime.utcnow().strftime("%Y-%m")
+            budget_result = (
+                db.table("budget_plans")
+                .select("allocated_amount")
+                .eq("user_id", current_user["id"])
+                .eq("month", current_month)
+                .execute()
+            )
+            if budget_result.data:
+                budget_total = sum(b["allocated_amount"] for b in budget_result.data)
+        except:
+            pass
+        
         # Get all user transactions
         transactions_result = (
             db.table("transactions")
@@ -1474,29 +1505,6 @@ def predict_expense(
         )
         
         transactions = transactions_result.data if transactions_result.data else []
-        
-        # Fetch latest income (users.annual_salary takes priority over income.monthly_income)
-        user_result = (
-            db.table("users")
-            .select("annual_salary")
-            .eq("id", current_user["id"])
-            .execute()
-        )
-        income_result = (
-            db.table("income")
-            .select("monthly_income")
-            .eq("user_id", current_user["id"])
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        
-        # Determine income - prioritize users.annual_salary (latest from profile) over income.monthly_income
-        latest_income = None
-        if user_result.data and user_result.data[0].get("annual_salary"):
-            latest_income = float(user_result.data[0]["annual_salary"]) / 12
-        elif income_result.data and income_result.data[0].get("monthly_income"):
-            latest_income = income_result.data[0]["monthly_income"]
         
         if not transactions:
             return {
@@ -1599,14 +1607,13 @@ def predict_expense(
 
         # ── Insight generation (shared for both paths) ──
         change_percent = ((predicted_amount - last_month_amount) / last_month_amount * 100) if last_month_amount > 0 else 0
-        income_ratio = (predicted_amount / latest_income * 100) if latest_income and latest_income > 0 else 0
 
         if change_percent > 10:
-            insight = f"Predicted a {abs(change_percent):.1f}% increase in expenses next month ({income_ratio:.1f}% of your monthly income). Consider reviewing your budget allocations."
+            insight = f"Predicted a {abs(change_percent):.1f}% increase in expenses next month. Consider reviewing your budget allocations."
         elif change_percent < -10:
-            insight = f"Predicted a {abs(change_percent):.1f}% decrease in expenses next month ({income_ratio:.1f}% of income). Great job managing your spending!"
+            insight = f"Predicted a {abs(change_percent):.1f}% decrease in expenses next month. Great job managing your spending!"
         else:
-            insight = f"Expenses predicted to remain stable next month at {income_ratio:.1f}% of your income, similar to your recent spending pattern."
+            insight = f"Expenses predicted to remain stable next month, similar to your recent spending pattern."
 
         # Store prediction (optional, ignore errors)
         try:
@@ -1628,7 +1635,9 @@ def predict_expense(
             },
             "historical_data": historical_data,
             "insight": insight,
-            "method": method
+            "method": method,
+            "monthly_income": round(user_income, 2),
+            "budget_total": round(budget_total, 2)
         }
     
     except Exception as e:
@@ -1807,6 +1816,7 @@ def get_insights(
         # Fetch user income for AI context
         user_income = 0
         try:
+            # First try income table
             income_result = (
                 db.table("income")
                 .select("monthly_income")
@@ -1817,6 +1827,17 @@ def get_insights(
             )
             if income_result.data:
                 user_income = income_result.data[0].get("monthly_income", 0) or 0
+            else:
+                # Fallback to users.annual_salary
+                user_result = (
+                    db.table("users")
+                    .select("annual_salary")
+                    .eq("id", current_user["id"])
+                    .execute()
+                )
+                if user_result.data and user_result.data[0].get("annual_salary"):
+                    annual_salary = float(user_result.data[0]["annual_salary"])
+                    user_income = annual_salary / 12
         except:
             pass
 
