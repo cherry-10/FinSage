@@ -686,12 +686,19 @@ def generate_budget(
         
         # Determine income - prioritize annual_salary
         income = None
+        print(f"API: User result data: {user_result.data}")
+        print(f"API: Income result data: {income_result.data}")
+        
         if user_result.data and user_result.data[0].get("annual_salary"):
-            income = float(user_result.data[0]["annual_salary"]) / 12
+            annual_salary = user_result.data[0]["annual_salary"]
+            income = float(annual_salary) / 12
+            print(f"API: Using annual salary: ₹{annual_salary} -> monthly income: ₹{income}")
         elif income_result.data and income_result.data[0].get("monthly_income"):
             income = income_result.data[0]["monthly_income"]
+            print(f"API: Using monthly income from table: ₹{income}")
         
         if not income:
+            print(f"API: No income found - user_result: {user_result.data}, income_result: {income_result.data}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Please set your annual salary in Profile settings first"
