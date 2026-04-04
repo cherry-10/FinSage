@@ -114,24 +114,7 @@ const Budget = () => {
     }
   };
 
-  const testBudgetAPI = async () => {
-    console.log('Budget: TESTING API DIRECTLY');
-    try {
-      const response = await fetch('https://finsage-xabw.onrender.com/api/budget/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      console.log('Budget: Direct API test response:', response);
-      const data = await response.json();
-      console.log('Budget: Direct API test data:', data);
-    } catch (error) {
-      console.error('Budget: Direct API test error:', error);
-    }
-  };
-
+  
   const generateIntelligentBudget = async () => {
     console.log('Budget: GENERATE BUTTON CLICKED - Starting budget generation');
     setLoading(true);
@@ -323,14 +306,6 @@ const Budget = () => {
                 className="w-full bg-white text-primary-600 font-semibold py-3 px-6 rounded-lg hover:bg-opacity-90 transition-all disabled:opacity-50"
               >
                 {loading ? 'Generating...' : 'Generate Smart Budget'}
-              </button>
-              
-              {/* Debug Test Button */}
-              <button
-                onClick={testBudgetAPI}
-                className="w-full mt-2 bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition-all"
-              >
-                Test API Directly
               </button>
             </div>
 
