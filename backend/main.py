@@ -906,6 +906,15 @@ def get_budget(
         current_month = datetime.utcnow().strftime("%Y-%m")
         print(f"API: GET budget called for user {current_user['id']}, month {current_month}")
         
+        # First check if any budget records exist for this user
+        all_budgets = (
+            db.table("budget_plans")
+            .select("*")
+            .eq("user_id", current_user["id"])
+            .execute()
+        )
+        print(f"API: All budgets for user: {all_budgets.data}")
+        
         result = (
             db.table("budget_plans")
             .select("*")
@@ -914,8 +923,13 @@ def get_budget(
             .execute()
         )
         
-        print(f"API: Budget query result: {result.data}")
+        print(f"API: Budget query result for month {current_month}: {result.data}")
         print(f"API: Number of budget records found: {len(result.data) if result.data else 0}")
+        
+        # If no current month budgets, try to get any budgets
+        if not result.data and all_budgets.data:
+            print(f"API: No budgets for current month {current_month}, but found budgets for other months")
+            print(f"API: Available months: {[b['month'] for b in all_budgets.data]}")
         
         return result.data if result.data else []
     
