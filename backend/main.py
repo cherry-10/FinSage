@@ -735,6 +735,8 @@ def generate_budget(
                     amount = t.get("amount", 0)
                     past_expenses[category] = past_expenses.get(category, 0) + amount
         
+        print(f"API: Income: ₹{income}, Target Savings: ₹{target_savings}")
+        
         # Generate budget using AI with correct parameters
         budget_categories = generate_budget_plan(
             income=income,
@@ -743,14 +745,19 @@ def generate_budget(
             loan_commitments=0  # Can be extended later
         )
         
+        print(f"API: AI generated budget categories: {budget_categories}")
+        
         # Convert list of dicts to dict for storage
         budget_plan = {cat["category"]: cat["allocated_amount"] for cat in budget_categories}
+        print(f"API: Budget plan dict: {budget_plan}")
         
         # Store budget plan
         current_month = datetime.utcnow().strftime("%Y-%m")
+        print(f"API: Storing budget for month: {current_month}")
         
         # Delete existing budget for current month
-        db.table("budget_plans").delete().eq("user_id", current_user["id"]).eq("month", current_month).execute()
+        delete_result = db.table("budget_plans").delete().eq("user_id", current_user["id"]).eq("month", current_month).execute()
+        print(f"API: Deleted existing budget: {delete_result}")
         
         # Insert new budget plans
         budget_records = []
@@ -764,8 +771,13 @@ def generate_budget(
             }
             budget_records.append(payload)
         
+        print(f"API: Budget records to insert: {budget_records}")
+        
         if budget_records:
-            db.table("budget_plans").insert(budget_records).execute()
+            insert_result = db.table("budget_plans").insert(budget_records).execute()
+            print(f"API: Budget insert result: {insert_result}")
+        else:
+            print("API: No budget records to insert")
         
         return {"message": "Budget generated successfully", "budget": budget_plan}
     

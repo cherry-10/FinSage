@@ -680,6 +680,54 @@ Get AI-powered financial insights.
 
 ---
 
+## 🤖 Machine Learning Model
+
+### Expense Prediction System
+
+**Model Architecture**: **Polynomial Regression (Degree 2)**
+- **Library**: scikit-learn
+- **Algorithm**: `LinearRegression` with `PolynomialFeatures`
+- **Degree**: 2 (quadratic) - captures non-linear spending trends
+
+**Implementation**:
+```python
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+
+# Create polynomial features (degree 2)
+poly = PolynomialFeatures(degree=min(2, len(amounts) - 1))
+X_poly = poly.fit_transform(X)
+
+# Train linear regression on polynomial features
+model = LinearRegression()
+model.fit(X_poly, y)
+```
+
+**How It Works**:
+1. **Data Input**: Monthly expense totals over time
+2. **Feature Engineering**: Converts time indices to polynomial features (x, x²)
+3. **Training**: Fits linear regression to capture non-linear trends
+4. **Prediction**: Predicts next month's expenses with confidence intervals
+
+**Model Logic**:
+- **ML Path** (≥10 transactions): Uses polynomial regression
+- **Fallback Path** (<10 transactions): Uses weighted average
+- **Confidence Range**: Based on residual standard deviation + historical spread
+
+**Features**:
+- **Adaptive Degree**: Reduces polynomial degree if insufficient data
+- **Statistical Confidence**: Calculates prediction intervals
+- **Trend Analysis**: Captures increasing/decreasing spending patterns
+- **Graceful Fallback**: Works even without scikit-learn
+
+**Use Cases**:
+- **Expense Prediction**: Predicts next month's total expenses
+- **Trend Analysis**: Identifies spending acceleration/deceleration
+- **Budget Planning**: Provides data for budget allocation decisions
+- **Anomaly Detection**: Flags unusual spending patterns
+
+---
+
 ## 🔧 Troubleshooting
 
 ### Common Issues
