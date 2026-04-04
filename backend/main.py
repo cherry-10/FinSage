@@ -824,6 +824,18 @@ def generate_budget(
         )
 
 # ============================================
+# BUDGET: TEST ENDPOINT
+# ============================================
+@app.get("/api/budget/test")
+def test_budget_endpoint():
+    """Test if budget generation endpoint is accessible"""
+    return {
+        "status": "budget_endpoint_accessible",
+        "timestamp": datetime.utcnow().isoformat(),
+        "message": "Budget generation endpoint is ready"
+    }
+
+# ============================================
 # HEALTH CHECK
 # ============================================
 @app.get("/api/health")

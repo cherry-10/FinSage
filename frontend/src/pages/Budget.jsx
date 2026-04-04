@@ -115,6 +115,7 @@ const Budget = () => {
   };
 
   const generateIntelligentBudget = async () => {
+    console.log('Budget: GENERATE BUTTON CLICKED - Starting budget generation');
     setLoading(true);
     try {
       console.log('Budget: Starting intelligent budget generation');
