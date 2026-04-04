@@ -97,7 +97,7 @@ Return ONLY a valid JSON array, no explanation, no markdown:
                     "content": prompt
                 }
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             temperature=0.2,
             max_tokens=1000,
         )
@@ -132,7 +132,11 @@ Return ONLY a valid JSON array, no explanation, no markdown:
         return budget_categories
 
     except Exception as e:
-        logger.error(f"Groq API budget generation failed: {str(e)}. Using rule-based fallback.")
+        error_msg = str(e).lower()
+        if "model_decommissioned" in error_msg or "400" in error_msg:
+            logger.error(f"Groq model decommissioned or invalid: {str(e)}. Using rule-based fallback.")
+        else:
+            logger.error(f"Groq API budget generation failed: {str(e)}. Using rule-based fallback.")
         return _rule_based_budget(income, target_savings, loan_commitments, past_expenses)
 
 def rule_based_anomaly_detection(
@@ -289,7 +293,7 @@ Return only the JSON array, no other text."""
                     "content": prompt
                 }
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             temperature=0.3,
             max_tokens=2000,
         )
@@ -391,7 +395,7 @@ Return format:
                     "content": prompt
                 }
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             temperature=0.4,
             max_tokens=1500,
         )
@@ -494,7 +498,7 @@ Return your response as plain text, not JSON."""
                     "content": prompt
                 }
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             temperature=0.5,
             max_tokens=1000,
         )
