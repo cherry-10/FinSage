@@ -663,6 +663,9 @@ def generate_budget(
     db=Depends(get_db),
 ):
     try:
+        print(f"API: /api/budget/generate called for user_id: {current_user['id']}")
+        print(f"API: Starting budget generation process")
+        
         # Get user's annual salary (primary source)
         user_result = (
             db.table("users")

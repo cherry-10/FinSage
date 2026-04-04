@@ -117,9 +117,13 @@ const Budget = () => {
   const generateIntelligentBudget = async () => {
     setLoading(true);
     try {
+      console.log('Budget: Starting intelligent budget generation');
+      
       // Get transactions to analyze spending patterns
       const transactionsResponse = await transactionAPI.getAll();
+      console.log('Budget: Transactions response:', transactionsResponse);
       const transactions = transactionsResponse.data.filter(t => t.transaction_type === 'expense');
+      console.log('Budget: Expense transactions:', transactions.length);
 
       // Calculate category-wise spending
       const categorySpending = {};
@@ -210,13 +214,20 @@ const Budget = () => {
         generated_at: new Date().toISOString()
       };
 
+      console.log('Budget: Setting new budget plan:', newBudget);
       setBudgetPlan(newBudget);
       
-      await budgetAPI.generate();
+      console.log('Budget: Calling backend budget API generate...');
+      const generateResponse = await budgetAPI.generate();
+      console.log('Budget: Backend generate response:', generateResponse);
+      
+      console.log('Budget: Fetching updated budget data...');
       await fetchBudgetData();
+      console.log('Budget: Budget generation complete');
       
     } catch (error) {
-      console.error('Failed to generate budget:', error);
+      console.error('Budget: Failed to generate budget:', error);
+      console.error('Budget: Error details:', error.response);
       alert('Failed to generate budget. Please ensure you have set your income and expense limits.');
     } finally {
       setLoading(false);
