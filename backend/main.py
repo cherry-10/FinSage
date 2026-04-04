@@ -756,8 +756,16 @@ def generate_budget(
         print(f"API: Storing budget for month: {current_month}")
         
         # Delete existing budget for current month
-        delete_result = db.table("budget_plans").delete().eq("user_id", current_user["id"]).eq("month", current_month).execute()
-        print(f"API: Deleted existing budget: {delete_result}")
+        try:
+            print(f"API: Attempting to delete existing budget for user {current_user['id']}, month {current_month}")
+            delete_result = db.table("budget_plans").delete().eq("user_id", current_user["id"]).eq("month", current_month).execute()
+            print(f"API: Deleted existing budget: {delete_result}")
+        except Exception as delete_error:
+            print(f"API: ERROR deleting budget: {str(delete_error)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete existing budget: {str(delete_error)}"
+            )
         
         # Insert new budget plans
         budget_records = []
@@ -774,8 +782,27 @@ def generate_budget(
         print(f"API: Budget records to insert: {budget_records}")
         
         if budget_records:
-            insert_result = db.table("budget_plans").insert(budget_records).execute()
-            print(f"API: Budget insert result: {insert_result}")
+            try:
+                print(f"API: Attempting to insert {len(budget_records)} budget records")
+                insert_result = db.table("budget_plans").insert(budget_records).execute()
+                print(f"API: Budget insert result: {insert_result}")
+                
+                # Verify insertion by querying back
+                verify_result = (
+                    db.table("budget_plans")
+                    .select("*")
+                    .eq("user_id", current_user["id"])
+                    .eq("month", current_month)
+                    .execute()
+                )
+                print(f"API: Verification query result: {verify_result.data}")
+                
+            except Exception as insert_error:
+                print(f"API: ERROR inserting budget: {str(insert_error)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to insert budget records: {str(insert_error)}"
+                )
         else:
             print("API: No budget records to insert")
         
@@ -790,6 +817,53 @@ def generate_budget(
         )
 
 # ============================================
+# DATABASE: TEST CONNECTION
+# ============================================
+@app.get("/api/test-db")
+def test_database(
+    current_user=Depends(auth.get_current_user),
+    db=Depends(get_db),
+):
+    """Test database connectivity and table existence"""
+    try:
+        print(f"API: Testing database connection for user {current_user['id']}")
+        
+        # Test basic query
+        test_result = db.table("users").select("id, email").eq("id", current_user["id"]).execute()
+        print(f"API: Users table test: {test_result.data}")
+        
+        # Test budget_plans table structure
+        budget_structure = db.table("budget_plans").select("*").limit(1).execute()
+        print(f"API: Budget_plans table structure test: {budget_structure.data}")
+        
+        # Test insert operation
+        test_insert = db.table("budget_plans").insert({
+            "user_id": current_user["id"],
+            "month": "2026-04",
+            "category": "Test",
+            "allocated_amount": 100.00,
+            "created_at": datetime.utcnow().isoformat()
+        }).execute()
+        print(f"API: Test insert result: {test_insert}")
+        
+        # Clean up test record
+        db.table("budget_plans").delete().eq("user_id", current_user["id"]).eq("category", "Test").execute()
+        
+        return {
+            "database_connection": "OK",
+            "users_table": "OK",
+            "budget_plans_table": "OK" if budget_structure.data else "NOT FOUND",
+            "insert_test": "OK" if test_insert.data else "FAILED"
+        }
+        
+    except Exception as e:
+        print(f"API: Database test error: {str(e)}")
+        return {
+            "database_connection": "FAILED",
+            "error": str(e)
+        }
+
+# ============================================
 # BUDGET: GET ALL
 # ============================================
 @app.get("/api/budget", response_model=List[schemas.BudgetPlanResponse])
@@ -799,6 +873,7 @@ def get_budget(
 ):
     try:
         current_month = datetime.utcnow().strftime("%Y-%m")
+        print(f"API: GET budget called for user {current_user['id']}, month {current_month}")
         
         result = (
             db.table("budget_plans")
@@ -807,6 +882,9 @@ def get_budget(
             .eq("month", current_month)
             .execute()
         )
+        
+        print(f"API: Budget query result: {result.data}")
+        print(f"API: Number of budget records found: {len(result.data) if result.data else 0}")
         
         return result.data if result.data else []
     
