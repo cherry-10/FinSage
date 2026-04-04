@@ -817,6 +817,18 @@ def generate_budget(
         )
 
 # ============================================
+# HEALTH CHECK
+# ============================================
+@app.get("/api/health")
+def health_check():
+    """Simple health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "FinSage Backend"
+    }
+
+# ============================================
 # DATABASE: TEST CONNECTION
 # ============================================
 @app.get("/api/test-db")

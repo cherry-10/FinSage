@@ -218,8 +218,11 @@ const Budget = () => {
       setBudgetPlan(newBudget);
       
       console.log('Budget: Calling backend budget API generate...');
+      console.log('Budget: About to call budgetAPI.generate()');
       const generateResponse = await budgetAPI.generate();
       console.log('Budget: Backend generate response:', generateResponse);
+      console.log('Budget: Generate response status:', generateResponse.status);
+      console.log('Budget: Generate response data:', generateResponse.data);
       
       console.log('Budget: Fetching updated budget data...');
       await fetchBudgetData();
